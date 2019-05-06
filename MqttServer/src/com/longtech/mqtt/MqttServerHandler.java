@@ -217,6 +217,9 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         MqttConnectMessage message = (MqttConnectMessage)request;
 
         String username = message.payload().userName();
+        if( username == null ) {
+            username = "";
+        }
         String pwd = message.payload().password();
         if(!JWTUtil.checkPassword(username,pwd)) {
             MqttConnAckVariableHeader variableheader = new MqttConnAckVariableHeader(MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USER_NAME_OR_PASSWORD, false);

@@ -53,30 +53,31 @@ public class MqttHttpPortUnificationServer extends ByteToMessageDecoder {
     private static final String MQTT_SUBPROTOCOL_CSV_LIST = "mqtt, mqttv3.1, mqttv3.1.1";
     private void switchToHttp(ChannelHandlerContext ctx) {
         ChannelPipeline pipeline = ctx.pipeline();
-        pipeline.addLast(new HttpServerCodec());
-//        pipeline.addLast(new HttpObjectAggregator(65536));
-        pipeline.addLast(new HttpObjectAggregator(10 * 1024 * 1024));
-        pipeline.addLast(new HttpPageHandler());
+//        pipeline.addLast(new HttpServerCodec());
+////        pipeline.addLast(new HttpObjectAggregator(65536));
+//        pipeline.addLast(new HttpObjectAggregator(10 * 1024 * 1024));
+//        pipeline.addLast(new HttpPageHandler());
+//        pipeline.remove(this);
+
+
+
+        pipeline.addLast(new HttpServerCodec())
+                .addLast("aggregator", new HttpObjectAggregator(10 * 1024 * 1024))
+                .addLast("pageHandler", new HttpPageHandler())
+                .addLast("webSocketHandler",
+                        new WebSocketServerProtocolHandler("/mqtt", MQTT_SUBPROTOCOL_CSV_LIST))
+                .addLast("ws2bytebufDecoder", new WebSocketFrameToByteBufDecoder())
+                .addLast("bytebuf2wsEncoder", new ByteBufToWebSocketFrameEncoder())
+//                .addFirst("idleStateHandler", new IdleStateHandler(60, 0, 0))//MQTT协议中接入请求会带 Keep Alive。这里只是临时设置
+//                .addAfter("idleStateHandler", "idleEventHandler", new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS))
+                .addLast("decoder", new MqttDecoder(20 * 1024*1024))
+                .addLast("encoder", MqttEncoder.INSTANCE)
+                .addLast("timeout", new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS))
+                .addLast(SERVER_HANDLER);
         pipeline.remove(this);
 
-
-
-//        pipeline.addLast(new HttpServerCodec())
-//                .addLast("aggregator", new HttpObjectAggregator(10 * 1024 * 1024))
-//                .addLast("webSocketHandler",
-//                        new WebSocketServerProtocolHandler("/mqtt", MQTT_SUBPROTOCOL_CSV_LIST))
-//                .addLast("ws2bytebufDecoder", new WebSocketFrameToByteBufDecoder())
-//                .addLast("bytebuf2wsEncoder", new ByteBufToWebSocketFrameEncoder())
-////                .addFirst("idleStateHandler", new IdleStateHandler(60, 0, 0))//MQTT协议中接入请求会带 Keep Alive。这里只是临时设置
-////                .addAfter("idleStateHandler", "idleEventHandler", new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS))
-//                .addLast("decoder", new MqttDecoder(20 * 1024*1024))
-//                .addLast("encoder", MqttEncoder.INSTANCE)
-//                .addLast("timeout", new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS))
-//                .addLast(SERVER_HANDLER)
-//                .remove(this);
-//
-////                .addLast("messageLogger", MQTTLogHandler.INSTANCE)
-////                .addLast("handler", this.mqttHandler);
+//                .addLast("messageLogger", MQTTLogHandler.INSTANCE)
+//                .addLast("handler", this.mqttHandler);
 
 
     }

@@ -85,7 +85,7 @@ public class RPCClient {
 
         MqttConnectOptions options = new MqttConnectOptions();
         options.setUserName("cluster");
-        String pwd = "eyJ0eXBlIjoiSldUIiwiYWxnIjoiSFMyNTYifQ.eyJuYW1lIjoiYm9iIiwgImFnZSI6NTAsInNhbHQiOjEyMzA1NDcxNTl9.KZ0334RHpdL3P00ORsbkS-LK-hNfrRCal_xGc_3nd-8";
+        String pwd = "";
         char[] pwdBuf = new char[pwd.length()];
         pwd.getChars(0, pwd.length(), pwdBuf, 0);
         options.setPassword(pwdBuf);

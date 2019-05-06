@@ -32,8 +32,30 @@ import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
  * Created by kaiguo on 2018/12/14.
  */
 public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
+
+    private boolean isDisable = false;
+
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        super.channelRead(ctx,msg);
+        if( isDisable ) {
+            ctx.pipeline().remove(this);
+        }
+
+    }
+
+    public boolean acceptInboundMessage(Object msg) throws Exception {
+        FullHttpRequest req = (FullHttpRequest)msg;
+        if(req != null && req.uri().contains("/mqtt")) {
+            isDisable = true;
+            return false;
+        }
+        return true;
+    }
+
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
+
+
         // Handle a bad request.
         if (!req.decoderResult().isSuccess()) {
             sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST));

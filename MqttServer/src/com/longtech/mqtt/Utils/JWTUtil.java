@@ -36,9 +36,9 @@ public class JWTUtil {
 
         }
 
-        return false;
+        return true;
     }
-    private static final  String secret = "4uvnMg330vre";
+    private static final  String secret = "1234567890";
     private static final  String MAC_INSTANCE_NAME = "HMacSHA256";
     public static String Hmacsha256(String secret, String message) throws NoSuchAlgorithmException, InvalidKeyException {
         Mac hmac_sha256 = Mac.getInstance(MAC_INSTANCE_NAME);

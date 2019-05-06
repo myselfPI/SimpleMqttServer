@@ -251,7 +251,6 @@ public class MqttWildcardTopicManager {
             for( Map.Entry<String, Node> child : root.children.entrySet() ) {
                 ret += getNodeSize(child.getValue());
             }
-
             return ret;
         }
 
