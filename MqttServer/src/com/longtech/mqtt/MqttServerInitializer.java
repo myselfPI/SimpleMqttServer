@@ -30,14 +30,15 @@ public class MqttServerInitializer extends ChannelInitializer<SocketChannel> {
     @Override
     public void initChannel(SocketChannel ch) throws Exception
     {
-
-
         ChannelPipeline pipeline = ch.pipeline();
         if (sslCtx != null)
         {
-            pipeline.addLast(sslCtx.newHandler(ch.alloc()));
+            if( ch.localAddress().getPort() == MqttServer.SSL_Port || ch.localAddress().getPort()==MqttServer.WSS_Port
+                    || ch.localAddress().getPort() == MqttServer.CTL_SSL_Port) {
+                pipeline.addLast(sslCtx.newHandler(ch.alloc()));
+            }
         }
-        System.out.println(ch.localAddress().getPort());
+
         if( true || ch.localAddress().getPort()==1883)
         {/*
              //mqtt消息解码、编码器
@@ -55,7 +56,8 @@ public class MqttServerInitializer extends ChannelInitializer<SocketChannel> {
 //            pipeline.addLast(SERVER_HANDLER);
 
 //            new WebSocketFrameToByteBufDecoder();
-        }else
+        }
+        else
         {
             //http请求消息解码、编码器，并将http 分段请求消息整合成 FullHttpRequest
             pipeline.addLast(new HttpRequestDecoder());

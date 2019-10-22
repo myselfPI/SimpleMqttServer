@@ -116,7 +116,7 @@ public class RPCClient {
 
             public void messageArrived(final String topic, final MqttMessage message) throws Exception {
 
-                MqttClientWorker.getInstance().deleveryMessage(topic, message.getPayload());
+                MqttClientWorker.getInstance().deleveryMessage(topic, message.getPayload(), null);
 
 //                decodeService.execute(new Runnable() {
 //                    @Override

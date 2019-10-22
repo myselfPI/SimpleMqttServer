@@ -30,8 +30,10 @@ final class MqttCodecUtil {
 
     static boolean isValidClientId(MqttVersion mqttVersion, String clientId) {
         if (mqttVersion == MqttVersion.MQTT_3_1) {
-            return clientId != null && clientId.length() >= MIN_CLIENT_ID_LENGTH &&
-                    clientId.length() <= MAX_CLIENT_ID_LENGTH;
+            // modify by guokai compatile clientid
+//            return clientId != null && clientId.length() >= MIN_CLIENT_ID_LENGTH &&
+//                    clientId.length() <= MAX_CLIENT_ID_LENGTH;
+            return clientId != null;
         }
         if (mqttVersion == MqttVersion.MQTT_3_1_1) {
             // In 3.1.3.1 Client Identifier of MQTT 3.1.1 specification, The Server MAY allow ClientId’s

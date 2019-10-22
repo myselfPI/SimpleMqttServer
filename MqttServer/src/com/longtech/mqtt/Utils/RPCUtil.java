@@ -54,7 +54,7 @@ public class RPCUtil {
         rpc.params = params;
         rpc.callTime = System.currentTimeMillis();
         rpcStores.put(currentMethodId, rpc);
-        worker.publicMessage(topic, data, 1);
+        worker.publicMessage(topic, data, null, 1);
     }
 
     public void callRemoteMethodCallback( String topic, byte[] data ) {

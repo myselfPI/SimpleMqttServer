@@ -2,12 +2,16 @@ package com.longtech.mqtt;
 
 import com.alibaba.fastjson.annotation.JSONField;
 import com.longtech.mqtt.Utils.DiskUtilMap;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.mqtt.MqttPublishMessage;
+import io.netty.util.internal.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -30,6 +34,8 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
 
     protected AtomicInteger messageid = new AtomicInteger(1);
 
+    protected long session_timestamp = 0;
+
     protected HashSet<String> topics = new HashSet<>();
     protected HashSet<String> wildChardTopics = new HashSet<>();
 
@@ -37,26 +43,53 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
         return sessionType;
     }
 
-    public void sendData( String topic, byte[] data ) {
-        MqttPublishMessage pubMsg = MqttServerHandler.buildPublish(topic, data, messageid.getAndIncrement());
-        if( context.channel().isActive()) {
-            context.writeAndFlush(pubMsg);
-            logger.debug("Session {} Send Client: {},{}", getClientid(), topic, data.length);
-        }
+    public void generateTimestamp() {
+        long timestamp = System.currentTimeMillis();
+        ThreadLocalRandom generator = ThreadLocalRandom.current();
+        long randnum = generator.nextLong(1000);
+        session_timestamp = timestamp *1000 + randnum;
+    }
+
+    public long getTimestamp() {
+        return session_timestamp;
+    }
+
+    public void sendData( final String topic, final byte[] data ) {
+        context.executor().execute(new Runnable() {
+            @Override
+            public void run() {
+                if( context.channel().isActive()) {
+                    MqttPublishMessage pubMsg = MqttServerHandler.buildPublish(topic, data, messageid.getAndIncrement());
+                    context.writeAndFlush(pubMsg);
+                    logger.debug("Session {} Send Client: {},{}", getClientid(), topic, data.length);
+                    SystemMonitor.send_count.incrementAndGet();
+                }
+            }
+        });
+
     }
 
     public void publicOnlineEvent() {
         String topic = "$SYS/brokers/nettyNode/clients/" + clientid +  "/connected";
         String content = "{\"ipaddress\":\"" + ipaddress + "\"}";
-        MqttClientWorker.getInstance().publicMessage(topic, content.getBytes(), 1);
-        DiskUtilMap.put(clientid, ipaddress);
+        MqttClientWorker.getInstance().publicMessage(topic, content.getBytes(), this, 1);
+//        DiskUtilMap.put(clientid, ipaddress);
     }
 
     public void publicOfflineEvent() {
         String topic = "$SYS/brokers/nettyNode/clients/" + clientid +  "/disconnected";
-        String content = "nothing";
-        MqttClientWorker.getInstance().publicMessage(topic, content.getBytes(), 1);
-        DiskUtilMap.remove(clientid);
+        String content = "{}";
+        MqttClientWorker.getInstance().publicMessage(topic, content.getBytes(), this, 1);
+//        DiskUtilMap.remove(clientid);
+    }
+
+
+    public void publicWillMessage() {
+        if( !this.isKick && this.abnormalExit && !StringUtil.isNullOrEmpty(this.willTopic)) {
+            if( this.willMessage != null && this.willMessage.length > 0) {
+                MqttClientWorker.getInstance().publicMessage(this.willTopic, this.willMessage, this, 1);
+            }
+        }
     }
 
     public void subTopics(String topic) {
@@ -131,6 +164,15 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
         this.context = context;
     }
 
+    protected boolean isKick = false;
+    public void kick() {
+        if( context.channel().isActive()) {
+            context.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+            logger.debug("Session {} kick out");
+        }
+        isKick = true;
+    }
+
     public String getIpaddress() {
         return ipaddress;
     }
@@ -182,4 +224,33 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
         return sb.toString();
     }
 
+    private String willTopic = null;
+    private byte[] willMessage = null;
+
+    private boolean abnormalExit = true;
+
+
+    public String getWillTopic() {
+        return willTopic;
+    }
+
+    public void setWillTopic(String willTopic) {
+        this.willTopic = willTopic;
+    }
+
+    public byte[] getWillMessage() {
+        return willMessage;
+    }
+
+    public void setWillMessage(byte[] willMessage) {
+        this.willMessage = willMessage;
+    }
+
+    public boolean isAbnormalExit() {
+        return abnormalExit;
+    }
+
+    public void setAbnormalExit(boolean abnormalExit) {
+        this.abnormalExit = abnormalExit;
+    }
 }

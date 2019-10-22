@@ -1,5 +1,6 @@
 package com.longtech.mqtt;
 
+import com.longtech.mqtt.Utils.Constants;
 import com.longtech.mqtt.codec.ByteBufToWebSocketFrameEncoder;
 import com.longtech.mqtt.codec.MqttDecoder;
 import com.longtech.mqtt.codec.WebSocketFrameToByteBufDecoder;
@@ -72,7 +73,7 @@ public class MqttHttpPortUnificationServer extends ByteToMessageDecoder {
 //                .addAfter("idleStateHandler", "idleEventHandler", new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS))
                 .addLast("decoder", new MqttDecoder(20 * 1024*1024))
                 .addLast("encoder", MqttEncoder.INSTANCE)
-                .addLast("timeout", new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS))
+                .addLast("timeout", new IdleStateHandler(Constants.CLIENT_TIMEOUT, 0, 0, TimeUnit.SECONDS))
                 .addLast(SERVER_HANDLER);
         pipeline.remove(this);
 
@@ -87,7 +88,7 @@ public class MqttHttpPortUnificationServer extends ByteToMessageDecoder {
 //        pipeline.addLast(new LoggingHandler(LogLevel.DEBUG));
         pipeline.addLast(new MqttDecoder(20 * 1024*1024));
         pipeline.addLast(MqttEncoder.INSTANCE);
-        pipeline.addLast("timeout", new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS));
+        pipeline.addLast("timeout", new IdleStateHandler(Constants.CLIENT_TIMEOUT, 0, 0, TimeUnit.SECONDS));
         pipeline.addLast(SERVER_HANDLER);
         pipeline.remove(this);
     }

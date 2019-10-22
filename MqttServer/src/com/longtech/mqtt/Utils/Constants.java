@@ -10,13 +10,16 @@ import java.net.InetAddress;
  */
 public class Constants {
     public static final String VERSION = "1.0.1";
-    public static final int SESSION_TASK_INTERVAL = 60;
+    public static int CLIENT_TIMEOUT = 60;
+    public static int SESSION_TASK_INTERVAL = 60;
     public static final int SESSION_INVALID_TIME_SEC = 300;
     public static final int USER_TASK_INTERVAL = 300;
     public static final int USER_INVALID_TIME_SEC = 7200;
     public static final int BYTES_DEBUG_THRESHOLD = 512;
     public static final String APP_DIR = "extensions/";
     public static final String APP_CONTEXT_FILE_NAME = "application-context.xml";
+    public static String KEY_FILE = "";
+    public static String CERT_FILE = "";
 
     public static final String HOST_NAME = "NETTY_MQTTSERVER_" + getSystemHostName() + "_" + (System.currentTimeMillis()/1000);
 
@@ -33,5 +36,12 @@ public class Constants {
         } catch (Exception ex) {
         }
         return  hostname;
+    }
+
+    public static void init() {
+        CLIENT_TIMEOUT = CommonUtils.getIntValue("client_timeout",60);
+        KEY_FILE = CommonUtils.getValue("key_file", "aihelp.pkcs8_key.pem");
+        CERT_FILE = CommonUtils.getValue("cert_file","aihelp.net.chained.crt");
+
     }
 }

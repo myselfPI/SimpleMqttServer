@@ -9,6 +9,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
+import io.netty.util.internal.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -157,6 +158,9 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
                     path = path.substring(0, path.length() -1);
                 }
                 path = path.replace('/','_');
+                if(StringUtil.isNullOrEmpty(path)) {
+                    path = "system_status";
+                }
             }
             try {
                 logger.info("HTTP call BEGIN {} {}", req.uri(), CommonUtils.toJSONString(params));
@@ -215,7 +219,10 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
         jsonObj.put("RPS", SystemMonitor.rps.longValue());
         jsonObj.put("allRequest", SystemMonitor.allReqCount.longValue());
         jsonObj.put("allTopics",MqttClientWorker.getInstance().getSubscribledTopicsSize());
-        jsonObj.put("allWildcardTopics", MqttWildcardTopicManager.getInstance().getWildTopicSessionsSize());
+        jsonObj.put("allWildcardTopics", MqttWildcardTopicManager.getInstance().getSimpleWildTopicSessionsSize());
+        jsonObj.put("send_count", SystemMonitor.send_count.get());
+        jsonObj.put("recv_count", SystemMonitor.recv_count.get());
+        jsonObj.put("connect_count", SystemMonitor.connect_count);
         successReturn(ctx, req, jsonObj);
     }
 

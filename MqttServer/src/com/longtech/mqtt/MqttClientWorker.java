@@ -10,6 +10,7 @@ package com.longtech.mqtt;
 //import com.im30.chatserver.Session.SessionManager;
 //import com.im30.chatserver.Utils.CommonUtils;
 //import com.im30.chatserver.Utils.SystemMonitor;
+import com.longtech.mqtt.BL.GroupDispatcher;
 import com.longtech.mqtt.Utils.CommonUtils;
 import com.longtech.mqtt.Utils.Constants;
 import com.longtech.mqtt.cluster.TopicManager;
@@ -340,9 +341,9 @@ public class MqttClientWorker {
     }
 
 
-    public void publicMessage(String topic, byte[] data, int version_code) {
+    public void publicMessage(String topic, byte[] data, MqttSession srcSession,  int version_code) {
         if( isServer ) {
-            deleveryMessage(topic, data);
+            deleveryMessage(topic, data, srcSession);
         }
         else {
             try {
@@ -532,11 +533,41 @@ public class MqttClientWorker {
         worker = mSendingWorkingExecutor.shutdownNow();
     }
 
-    public void deleveryMessage(String topic, byte[] data) {
+    public void deleveryMessage(String topic, byte[] data, MqttSession srcSession) {
         Collection<MqttSession> sessions = getSessions(topic);
-        for( MqttSession session : sessions) {
+//        for( MqttSession session : sessions) {
+//            session.sendData(topic, data);
+//        }
+//        MqttWildcardTopicManager.getInstance().PublishMessage(topic,data);
+        Collection<MqttSession> sessions1 = MqttWildcardTopicManager.getInstance().getSessions(topic);
+        HashSet<MqttSession> finalSessions = new HashSet<>();
+        finalSessions.addAll(sessions);
+        finalSessions.addAll(sessions1);
+
+        ArrayList<MqttSession> sharedSession = new ArrayList<>();
+
+        for( MqttSession session : finalSessions) {
+            if ( session != null && session.getSessionType() == 3) {
+                sharedSession.add(session);
+                continue;
+            }
             session.sendData(topic, data);
         }
-        MqttWildcardTopicManager.getInstance().PublishMessage(topic,data);
+//        if (sharedSession.size() > 0 ) {
+//            long num = sharedSession.size();
+//            if( srcSession == null ) {
+//                long index = CommonUtils.getRandomNum(num);
+//                if( sharedSession.get((int)index) != null) {
+//                    sharedSession.get((int)index).sendData(topic,data);
+//                }
+//            }
+//
+//            long stamp = srcSession.getTimestamp();
+//            long index = stamp % num;
+//            if( sharedSession.get((int)index) != null) {
+//                sharedSession.get((int)index).sendData(topic,data);
+//            }
+//        }
+
     }
 }

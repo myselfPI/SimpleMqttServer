@@ -11,6 +11,7 @@ import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Created by kaiguo on 2018/8/30.
@@ -223,5 +224,14 @@ public class CommonUtils {
         } catch (Exception e) {
         }
         return 0L;
+    }
+
+    public static long getRandomNum( long size ) {
+        if( size == 1) {
+            return 0;
+        }
+        ThreadLocalRandom generator = ThreadLocalRandom.current();
+        long randnum = generator.nextLong(size);
+        return randnum;
     }
 }

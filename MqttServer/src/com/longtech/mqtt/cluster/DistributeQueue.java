@@ -18,7 +18,7 @@ public class DistributeQueue {
 
 
     public void addData(  HashMap<String, String>  message ) {
-        worker.publicMessage("$cluster/q/addmessage", new byte[]{}, 1);
+        worker.publicMessage("$cluster/q/addmessage", new byte[]{}, null, 1);
     }
 
     public void pushSubData( HashMap<String, String>  message ) {

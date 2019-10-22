@@ -25,4 +25,9 @@ public class SystemMonitor {
             }
         }, 2, 2, TimeUnit.SECONDS);
     }
+
+
+    public static AtomicLong recv_count = new AtomicLong();
+    public static AtomicLong send_count = new AtomicLong();
+    public static AtomicLong connect_count = new AtomicLong();
 }
