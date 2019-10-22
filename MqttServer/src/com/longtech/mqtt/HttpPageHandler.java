@@ -66,7 +66,7 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
         process(req, ctx);
         long end = System.currentTimeMillis();
         if( end - start > 50) {
-            logger.info("HTTP call [SLOW QUERY] {} {}", end - start,  req.uri());
+//            logger.info("HTTP call [SLOW QUERY] {} {}", end - start,  req.uri());
         }
     }
 
@@ -86,7 +86,7 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
             HttpUtil.setContentLength(res, res.content().readableBytes());
         }
 
-        logger.info("HTTP call END {} {} {}", req.uri(), res.status().code(), result);
+//        logger.info("HTTP call END {} {} {}", req.uri(), res.status().code(), result);
 
         // Send the response and close the connection if necessary.
         ChannelFuture f = ctx.channel().writeAndFlush(res);
@@ -163,7 +163,7 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
                 }
             }
             try {
-                logger.info("HTTP call BEGIN {} {}", req.uri(), CommonUtils.toJSONString(params));
+//                logger.info("HTTP call BEGIN {} {}", req.uri(), CommonUtils.toJSONString(params));
                 Method m = HttpPageHandler.class.getDeclaredMethod(path, HttpRequest.class, ChannelHandlerContext.class, Map.class);
                 if( m == null) {
                 }

@@ -402,7 +402,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         byte[] bytes = new byte[buf.readableBytes()];
         int readerIndex = buf.readerIndex();
         buf.getBytes(readerIndex, bytes);
-        String msg = new String(ByteBufUtil.getBytes(buf));
+//        String msg = new String(ByteBufUtil.getBytes(buf));
         logger.debug("Session {} Recevied Client：{},{}",ctx.channel().attr(USER).get(), topic , bytes.length);
         int msgId = message.variableHeader().messageId();
         if (msgId == -1)
