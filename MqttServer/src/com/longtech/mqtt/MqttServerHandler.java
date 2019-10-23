@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 import io.netty.util.CharsetUtil;
 import io.netty.util.ReferenceCountUtil;
+import org.eclipse.paho.client.mqttv3.internal.wire.MqttPubRec;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 /**
@@ -79,7 +80,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
                                 doSubMessage(ctx, request);
                                 return;
                             case UNSUBSCRIBE:
-                                doUnSubMessage(ctx,request);
+                                doUnSubMessage(ctx, request);
                                 return;
                             case PUBLISH:
                                 doPublishMessage(ctx, request);
@@ -402,8 +403,8 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         byte[] bytes = new byte[buf.readableBytes()];
         int readerIndex = buf.readerIndex();
         buf.getBytes(readerIndex, bytes);
-//        String msg = new String(ByteBufUtil.getBytes(buf));
-        logger.debug("Session {} Recevied Client：{},{}",ctx.channel().attr(USER).get(), topic , bytes.length);
+        //String msg = new String(ByteBufUtil.getBytes(buf));
+        //logger.info("Session {} Recevied Client：{},{}",ctx.channel().attr(USER).get(), topic , msg);
         int msgId = message.variableHeader().messageId();
         if (msgId == -1)
             msgId = 1;
@@ -431,13 +432,20 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         }
 
 
-//        if (message.fixedHeader().qosLevel() == MqttQoS.AT_MOST_ONCE)
-//        {
+        if (message.fixedHeader().qosLevel() == MqttQoS.AT_LEAST_ONCE)
+        {
+            MqttMessageIdVariableHeader header = MqttMessageIdVariableHeader.from(msgId);
+            MqttPubAckMessage puback = new MqttPubAckMessage(PUBACK_HEADER, header);
+            ctx.writeAndFlush(puback);
+            logger.debug("Send Mqtt {}", MqttMessageType.PUBACK);
+        }
+        else if ( message.fixedHeader().qosLevel() == MqttQoS.EXACTLY_ONCE) {
 //            MqttMessageIdVariableHeader header = MqttMessageIdVariableHeader.from(msgId);
-//            MqttPubAckMessage puback = new MqttPubAckMessage(PUBACK_HEADER, header);
-//            ctx.writeAndFlush(puback);
+//            MqttPubAckMessage pubrec = new MqttPubAckMessage(PUBREC_HEADER, header);
+//            ctx.writeAndFlush(pubrec);
 //            logger.debug("Send Mqtt {}", MqttMessageType.PUBACK);
-//        }
+            logger.error("Mqtt Qos2 Not Supported");
+        }
 
 
         MqttClientWorker.getInstance().publicMessage(topic, bytes, session, 1);
