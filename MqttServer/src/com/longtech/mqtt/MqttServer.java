@@ -143,12 +143,12 @@ public class MqttServer {
 
         try {
             ServerBootstrap b = new ServerBootstrap();
-            b.group(bossGroup, workerGroup)
-                    .option(ChannelOption.SO_BACKLOG,1024)
-                    .option(ChannelOption.MAX_MESSAGES_PER_READ,Integer.MAX_VALUE)
-                    .childOption(ChannelOption.ALLOCATOR,new PooledByteBufAllocator(true))
-                    .childOption(ChannelOption.SO_REUSEADDR,true)
-                    .childOption(ChannelOption.MAX_MESSAGES_PER_READ,Integer.MAX_VALUE);
+            b.group(bossGroup, workerGroup);
+//                    .option(ChannelOption.SO_BACKLOG,1024)
+//                    .option(ChannelOption.MAX_MESSAGES_PER_READ,Integer.MAX_VALUE)
+//                    .childOption(ChannelOption.ALLOCATOR,new PooledByteBufAllocator(true))
+//                    .childOption(ChannelOption.SO_REUSEADDR,true)
+//                    .childOption(ChannelOption.MAX_MESSAGES_PER_READ,Integer.MAX_VALUE);
             if( Epoll.isAvailable()) {
                 b.channel(EpollServerSocketChannel.class);
             }

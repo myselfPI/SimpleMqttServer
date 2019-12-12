@@ -11,10 +11,12 @@ package com.longtech.mqtt;
 //import com.im30.chatserver.Utils.CommonUtils;
 //import com.im30.chatserver.Utils.SystemMonitor;
 import com.longtech.mqtt.BL.GroupDispatcher;
+import com.longtech.mqtt.BL.TopicStore;
 import com.longtech.mqtt.Utils.CommonUtils;
 import com.longtech.mqtt.Utils.Constants;
 import com.longtech.mqtt.cluster.TopicManager;
 import io.netty.util.internal.StringUtil;
+import org.apache.commons.lang.StringUtils;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 //import org.jcp.xml.dsig.internal.dom.Utils;
@@ -24,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -58,8 +61,11 @@ public class MqttClientWorker {
     private static int SplitThreshold = 4096;
     private static int SplitPartSize = 1024;
     private ExecutorService mRecvingWorkingExecutor = null;
+    private ScheduledFuture<?> mRecvingWorkingFuture = null;
     private ExecutorService mSendingWorkingExecutor = null;
+    private ScheduledFuture<?> mSendingWorkingFuture = null;
     private ScheduledExecutorService mHeartBeatExecutor =  Executors.newSingleThreadScheduledExecutor();
+    private ScheduledFuture<?> mHeartBeatFuture = null;
     static class DataHolder {
         String topic = "";
         MqttMessage message;
@@ -100,10 +106,12 @@ public class MqttClientWorker {
             return;
         }
 
+        exitWorker = false;
+
         tryConnectAndSubScrible();
         ProcessMessageQueue();
         //专用保活队列
-        mHeartBeatExecutor.scheduleAtFixedRate(new Runnable() {
+        mHeartBeatFuture = mHeartBeatExecutor.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
                 try {
@@ -114,6 +122,28 @@ public class MqttClientWorker {
                 }
             }
         }, 30, 30, TimeUnit.SECONDS);
+
+
+    }
+
+    public final static int single_server = 1;
+    public final static int cluster_gate = 2;
+    public final static int cluster_center = 3;
+    public void setServer( int serverMode ) {
+        switch (serverMode) {
+            case single_server:
+                isServer = true;
+                break;
+            case cluster_center:
+                break;
+            case cluster_gate:
+                isServer = false;
+                break;
+        }
+    }
+    private  String server_address = "";
+    public void setServerAddress(String val) {
+        server_address = val;
     }
 
     private Object lockObj = new Object();
@@ -130,13 +160,13 @@ public class MqttClientWorker {
     public void subscribe(String topic, MqttSession session) {
 
         if( !isServer ) {
-            if( mClient.isConnected()) {
-                try {
-                    mClient.subscribe(topic, 0);
-                } catch (MqttException e) {
-                    e.printStackTrace();
-                }
-            }
+//            if( mClient.isConnected()) {
+//                try {
+//                    mClient.subscribe(topic, 0);
+//                } catch (MqttException e) {
+//                    e.printStackTrace();
+//                }
+//            }
         }
         ConcurrentSkipListSet<MqttSession> sessions = CommonUtils.getBean(subscribledTopics, topic, ConcurrentSkipListSet.class);
         sessions.add(session);
@@ -144,6 +174,7 @@ public class MqttClientWorker {
             TopicManager.getInstance().addSubTopic(topic, session.getSid());
         }
 
+        TopicStore.subTopic(topic);
     }
 
     public void unSubscribe(String topic, MqttSession session) {
@@ -159,16 +190,18 @@ public class MqttClientWorker {
         }
 
         if( !isServer ) {
-            if( mClient.isConnected()) {
-                try {
-                    if( sessions.size() == 0 ) {
-                        mClient.unsubscribe(topic);
-                    }
-                } catch (MqttException e) {
-                    e.printStackTrace();
-                }
-            }
+//            if( mClient.isConnected()) {
+//                try {
+//                    if( sessions.size() == 0 ) {
+//                        mClient.unsubscribe(topic);
+//                    }
+//                } catch (MqttException e) {
+//                    e.printStackTrace();
+//                }
+//            }
         }
+
+        TopicStore.unsubTopic(topic);
     }
 
     public Collection<MqttSession> getSessions(String topic) {
@@ -182,6 +215,10 @@ public class MqttClientWorker {
 
     public void tryConnectAndSubScrible() {
 
+        if( exitWorker ) {
+            return;
+        }
+
         hasConnectborker = 1;
         boolean isConnectSuccess = false;
         boolean isSub1 = false;
@@ -189,7 +226,10 @@ public class MqttClientWorker {
         try {
             if( mClient == null ) {
 
-                String mqttBrokerAddres = CommonUtils.getValue("mqtt_server", "");
+                String mqttBrokerAddres = server_address;
+                if(StringUtil.isNullOrEmpty(mqttBrokerAddres)) {
+                    mqttBrokerAddres = CommonUtils.getValue("mqtt_server", "");
+                }
                 String mqttBrokerAddres_v0 = "";
                 SplitThreshold = 4096;
                 SplitPartSize = 2048;
@@ -250,8 +290,9 @@ public class MqttClientWorker {
                     @Override
                     public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
 
-                        DataHolder data = new DataHolder(s, mqttMessage);
-                        messageRecvingQueue.put(data);
+//                        DataHolder data = new DataHolder(s, mqttMessage);
+//                        messageRecvingQueue.put(data);
+                        deleveryMessage(s, mqttMessage.getPayload(), null);
                     }
 
                     @Override
@@ -272,11 +313,11 @@ public class MqttClientWorker {
         try {
             if (mClient != null) {
                 MqttConnectOptions options = new MqttConnectOptions();
-                options.setUserName("cok_server");
-                String pwd = "eyJ0eXBlIjoiSldUIiwiYWxnIjoiSFMyNTYifQ.eyJuYW1lIjoiYm9iIiwgImFnZSI6NTAsInNhbHQiOjEyMzA1NDcxNTl9.KZ0334RHpdL3P00ORsbkS-LK-hNfrRCal_xGc_3nd-8";
-                char[] pwdBuf = new char[pwd.length()];
-                pwd.getChars(0, pwd.length(), pwdBuf, 0);
-                options.setPassword(pwdBuf);
+//                options.setUserName("");
+//                String pwd = "";
+//                char[] pwdBuf = new char[pwd.length()];
+//                pwd.getChars(0, pwd.length(), pwdBuf, 0);
+//                options.setPassword(pwdBuf);
                 options.setKeepAliveInterval(60 * 2);
                 token = mClient.connect(options);
                 token.waitForCompletion(5000);
@@ -298,36 +339,154 @@ public class MqttClientWorker {
             ex.printStackTrace();
         }
 
-        if ( mClient.isConnected() ) {
+//        if ( mClient.isConnected() ) {
+//
+//            try {
+//                token = mClient.subscribe(new String[] {"s/" + Constants.HOST_NAME.toLowerCase() + "/#"}, new int[] {0});
+//
+//                token.waitForCompletion(5*1000);
+//
+//                if(token.isComplete()) {
+//                    isSub1 = true;
+//                    isSub2 = true;
+//                }
+//                else {
+//                    logger.error("MQTT Server subscrible Failed (timeout)!!!");
+//                }
+//
+//                if( true ) {
+//                    for(Map.Entry<String,ConcurrentSkipListSet<MqttSession>> item : subscribledTopics.entrySet()) {
+//                        token = mClient.subscribe(item.getKey(),0);
+//                        if(!token.isComplete()) {
+//                            logger.error("MQTT Server subscrible Failed (timeout)!!!");
+//                        }
+//                    }
+//                }
+//
+//            } catch (MqttException e) {
+//                logger.error("MQTT Server subscrible Failed!!!");
+//                e.printStackTrace();
+//            } catch (Exception e) {
+//
+//            }
+//        }
 
-            try {
-                token = mClient.subscribe(new String[] {"s/" + Constants.HOST_NAME.toLowerCase() + "/#"}, new int[] {0});
-
-                token.waitForCompletion(5*1000);
-
-                if(token.isComplete()) {
-                    isSub1 = true;
-                    isSub2 = true;
-                }
-                else {
-                    logger.error("MQTT Server subscrible Failed (timeout)!!!");
-                }
-
-                if( true ) {
-                    for(Map.Entry<String,ConcurrentSkipListSet<MqttSession>> item : subscribledTopics.entrySet()) {
-                        token = mClient.subscribe(item.getKey(),0);
-                        if(!token.isComplete()) {
-                            logger.error("MQTT Server subscrible Failed (timeout)!!!");
+        if( isConnectSuccess ) {
+            isSub1 = isSub2 = true;
+            final MqttAsyncClient currentClient = mClient;
+            TopicStore.queryDumpAndMonitorTopics(new TopicStore.Topiclistener() {
+                @Override
+                public void topicSubEvent(String topic) {
+                    if( currentClient == mClient && mClient.isConnected()) {
+                        if( currentClient == mClient && mClient.isConnected()) {
+                            try {
+                                IMqttToken token = currentClient.subscribe(topic, 0);
+//                                token.waitForCompletion();
+//                                if(token.isComplete()) {
+//                                }
+                            } catch (MqttException e) {
+                                e.printStackTrace();
+                            }
                         }
                     }
                 }
 
-            } catch (MqttException e) {
-                logger.error("MQTT Server subscrible Failed!!!");
-                e.printStackTrace();
-            } catch (Exception e) {
+                @Override
+                public void topicUnsubEvent(String topic) {
+                    if( currentClient == mClient && mClient.isConnected()) {
+                        try {
+                            IMqttToken token = currentClient.unsubscribe(topic);
+//                            token.waitForCompletion();
+//                            if(token.isComplete()) {
+//                            }
+                        } catch (MqttException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
 
-            }
+                @Override
+                public void dumpSubTopics(String[] topics) {
+                    if( currentClient == mClient && mClient.isConnected()) {
+                        try {
+                            int[] qoses = new int[topics.length];
+                            IMqttToken token = currentClient.subscribe(topics, qoses);
+//                            token.waitForCompletion();
+//                            if(token.isComplete()) {
+//                            }
+                        } catch (MqttException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+
+                @Override
+                public void pubTopics(String topic, byte[] data) {
+                    if( currentClient == mClient && mClient.isConnected()) {
+                        try {
+                            currentClient.publish(topic,data,0,false);
+//                            token.waitForCompletion();
+//                            if(token.isComplete()) {
+//                            }
+                        } catch (MqttException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    else {
+                        deleveryMessage(topic, data, null);
+                    }
+                }
+
+            });
+
+//            TopicStore.setlistener(new TopicStore.Topiclistener() {
+//                @Override
+//                public void topicSubEvent(String topic, long allcount) {
+//                    if( mClient != null && mClient.isConnected()) {
+//                        try {
+//                            IMqttToken token = mClient.subscribe(topic,0);
+//                            token.waitForCompletion();
+//                        } catch (MqttException e) {
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                }
+//
+//                @Override
+//                public void topicUnsubEvent(String topic, long allcount) {
+//                    if( mClient != null && mClient.isConnected()) {
+//                        try {
+//                            IMqttToken token = mClient.unsubscribe(topic);
+//                            token.waitForCompletion();
+//                        } catch (MqttException e) {
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                }
+//            });
+//
+//            Map<String, AtomicLong> allSubTopics = TopicStore.dumpTopic();
+//            String[] topics = new String[allSubTopics.size()];
+//            int[] qoses = new int[allSubTopics.size()];
+//            int i = 0;
+//            for(Map.Entry<String,AtomicLong> item : allSubTopics.entrySet()) {
+//                topics[i] = item.getKey();
+//                qoses[i] = 0;
+//                i++;
+//            }
+//
+//            if( mClient != null && mClient.isConnected()) {
+//                try {
+//                    token = mClient.subscribe(topics, qoses);
+//                    token.waitForCompletion();
+//                    if(token.isComplete()) {
+//                        isSub1 = isSub2 = true;
+//                    }
+//                } catch (MqttException e) {
+//                    e.printStackTrace();
+//                }
+//            }
+
         }
 
         if(isConnectSuccess && isSub1 && isSub2 ) {
@@ -346,13 +505,15 @@ public class MqttClientWorker {
             deleveryMessage(topic, data, srcSession);
         }
         else {
-            try {
+//            try {
+//                DataHolder dh = new DataHolder(topic,data);
+//                messageSendingQueue.put(dh);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
 
-                DataHolder dh = new DataHolder(topic,data);
-                messageSendingQueue.put(dh);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+
+            TopicStore.publishTopicData(topic,data);
         }
 
     }
@@ -463,6 +624,7 @@ public class MqttClientWorker {
                             }
                         } else {
                             tryConnectAndSubScrible();
+                            if(exitWorker) continue;
                         }
                         //重连失败，等待继续重连
                         if (mClient != null && !mClient.isConnected()) {
@@ -488,11 +650,13 @@ public class MqttClientWorker {
 //                                PushRequestFactory.getInstance().SendToUsers(data);
                             }
                             else {
-                                Collection<MqttSession> sessions = getSessions(dh.topic);
-                                for( MqttSession session : sessions) {
-                                    session.sendData(dh.topic, dh.message.getPayload());
-                                }
-                                MqttWildcardTopicManager.getInstance().PublishMessage(dh.topic,dh.message.getPayload());
+
+                                deleveryMessage(dh.topic,dh.message.getPayload(),null);
+//                                Collection<MqttSession> sessions = getSessions(dh.topic);
+//                                for( MqttSession session : sessions) {
+//                                    session.sendData(dh.topic, dh.message.getPayload());
+//                                }
+//                                MqttWildcardTopicManager.getInstance().PublishMessage(dh.topic,dh.message.getPayload());
                             }
 
 
@@ -529,8 +693,16 @@ public class MqttClientWorker {
 
     public void stopClient() {
         exitWorker = true;
-        List<Runnable> worker = mRecvingWorkingExecutor.shutdownNow();
-        worker = mSendingWorkingExecutor.shutdownNow();
+//        List<Runnable> worker = mRecvingWorkingExecutor.shutdownNow();
+//        worker = mSendingWorkingExecutor.shutdownNow();
+        mHeartBeatFuture.cancel(true);
+        if( mClient != null &&  mClient.isConnected()) {
+            try {
+                mClient.disconnect();
+            } catch (MqttException e) {
+//                e.printStackTrace();
+            }
+        }
     }
 
     public void deleveryMessage(String topic, byte[] data, MqttSession srcSession) {

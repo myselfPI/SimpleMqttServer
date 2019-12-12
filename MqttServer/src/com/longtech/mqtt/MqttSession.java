@@ -10,6 +10,7 @@ import io.netty.util.internal.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -61,7 +62,9 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
                 if( context.channel().isActive()) {
                     MqttPublishMessage pubMsg = MqttServerHandler.buildPublish(topic, data, messageid.getAndIncrement());
                     context.writeAndFlush(pubMsg);
-                    logger.debug("Session {} Send Client: {},{}", getClientid(), topic, data.length);
+                    if ( isDebug()) {
+                        logger.info("Session {} Send Client: {},{}", clientid, topic, data.length);
+                    }
                     SystemMonitor.send_count.incrementAndGet();
                 }
             }
@@ -72,14 +75,16 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
     public void publicOnlineEvent() {
         String topic = "$SYS/brokers/nettyNode/clients/" + clientid +  "/connected";
         String content = "{\"ipaddress\":\"" + ipaddress + "\"}";
-        MqttClientWorker.getInstance().publicMessage(topic, content.getBytes(), this, 1);
+        //disable online event
+//        MqttClientWorker.getInstance().publicMessage(topic, content.getBytes(), this, 1);
 //        DiskUtilMap.put(clientid, ipaddress);
     }
 
     public void publicOfflineEvent() {
         String topic = "$SYS/brokers/nettyNode/clients/" + clientid +  "/disconnected";
         String content = "{}";
-        MqttClientWorker.getInstance().publicMessage(topic, content.getBytes(), this, 1);
+        //disable offline event
+//        MqttClientWorker.getInstance().publicMessage(topic, content.getBytes(), this, 1);
 //        DiskUtilMap.remove(clientid);
     }
 
@@ -168,7 +173,10 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
     public void kick() {
         if( context.channel().isActive()) {
             context.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
-            logger.debug("Session {} kick out");
+            if( debug) {
+                logger.info("Session {} kick out", clientid);
+            }
+
         }
         isKick = true;
     }
@@ -252,5 +260,24 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
 
     public void setAbnormalExit(boolean abnormalExit) {
         this.abnormalExit = abnormalExit;
+    }
+
+    private boolean debug = SystemMonitor.is_debug.get();
+
+    public boolean isDebug() {
+        return debug;
+    }
+
+    public void setIsDebug(boolean isDebug) {
+        this.debug = isDebug;
+    }
+
+    private int connect_port = 0;
+    public void setConnectPort(int port) {
+        connect_port = port;
+    }
+
+    public int getConectPort() {
+        return connect_port;
     }
 }

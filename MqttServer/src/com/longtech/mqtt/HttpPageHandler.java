@@ -20,6 +20,8 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 
@@ -213,7 +215,7 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
     }
 
     public static void system_status( HttpRequest req, ChannelHandlerContext ctx, Map<String,String> params) {
-        JSONObject jsonObj = new JSONObject();
+        SortedMap jsonObj = new TreeMap();
         jsonObj.put("online", MqttSessionManager.getInstance().getCurrentSessions());
         jsonObj.put("connects", SystemMonitor.connectNumber.longValue());
         jsonObj.put("RPS", SystemMonitor.rps.longValue());
@@ -223,11 +225,15 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
         jsonObj.put("send_count", SystemMonitor.send_count.get());
         jsonObj.put("recv_count", SystemMonitor.recv_count.get());
         jsonObj.put("connect_count", SystemMonitor.connect_count);
+        jsonObj.put("count_tcp", SystemMonitor.mqtt_tcp_count);
+        jsonObj.put("count_ssl", SystemMonitor.mqtt_ssl_count);
+        jsonObj.put("count_ws", SystemMonitor.mqtt_ws_count);
+        jsonObj.put("count_wss", SystemMonitor.mqtt_wss_count);
         successReturn(ctx, req, jsonObj);
     }
 
     public static void system_status_detail( HttpRequest req, ChannelHandlerContext ctx, Map<String,String> params) {
-        JSONObject jsonObj = new JSONObject();
+        SortedMap jsonObj = new TreeMap();
         jsonObj.put("online", MqttSessionManager.getInstance().getCurrentSessions());
         jsonObj.put("connects", SystemMonitor.connectNumber.longValue());
         jsonObj.put("RPS", SystemMonitor.rps.longValue());
@@ -238,7 +244,50 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
         jsonObj.put("MqttTopics", getJsonObj(MqttClientWorker.getInstance().getSubscribledTopics()));
         jsonObj.put("WildcardTopics", getJsonObj(MqttWildcardTopicManager.getInstance().getWildcardTopicSessions()));
         jsonObj.put("Name", NodeManager.getInstance().getMyNodeName());
+        jsonObj.put("count_tcp", SystemMonitor.mqtt_tcp_count);
+        jsonObj.put("count_ssl", SystemMonitor.mqtt_ssl_count);
+        jsonObj.put("count_ws", SystemMonitor.mqtt_ws_count);
+        jsonObj.put("count_wss", SystemMonitor.mqtt_wss_count);
+        jsonObj.put("send_count", SystemMonitor.send_count.get());
+        jsonObj.put("recv_count", SystemMonitor.recv_count.get());
         successReturn(ctx, req, jsonObj);
     }
 
+    public static void system_debugon( HttpRequest req, ChannelHandlerContext ctx, Map<String,String> params) {
+        SystemMonitor.is_debug.set(true);
+        successReturn(ctx, req, new JSONObject());
+    }
+
+    public static void system_debugoff( HttpRequest req, ChannelHandlerContext ctx, Map<String,String> params) {
+        SystemMonitor.is_debug.set(false);
+        successReturn(ctx, req, new JSONObject());
+    }
+
+    public static void connectmqtt(HttpRequest req, ChannelHandlerContext ctx, Map<String,String> params) {
+        String host = params.get("h");
+        String port = params.get("p");
+
+        String address = "tcp://" + host + ":" + port;
+
+        MqttClientWorker.getInstance().setServerAddress(address);
+        MqttClientWorker.getInstance().setServer(MqttClientWorker.cluster_gate);
+        MqttClientWorker.getInstance().startClient();
+        JSONObject obj = new JSONObject();
+        obj.put("addr", address);
+        successReturn(ctx, req, obj);
+    }
+
+    public static void disconnectmqtt(HttpRequest req, ChannelHandlerContext ctx, Map<String,String> params) {
+//        String host = params.get("h");
+//        String port = params.get("p");
+//
+//        String address = "tcp://" + host + ":" + port;
+
+        MqttClientWorker.getInstance().setServerAddress("");
+        MqttClientWorker.getInstance().setServer(MqttClientWorker.single_server);
+        MqttClientWorker.getInstance().stopClient();
+        JSONObject obj = new JSONObject();
+//        obj.put("addr",address);
+        successReturn(ctx, req, obj);
+    }
 }

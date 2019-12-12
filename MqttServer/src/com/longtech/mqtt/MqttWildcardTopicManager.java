@@ -312,19 +312,22 @@ public class MqttWildcardTopicManager {
 
         public static void subSucrible( String topic, MqttSession session) {
             String[] topicItem = topic.split("\\/");
-            Node node = leafInsertNode(topicItem);
-            node.subs.add(session);
+            synchronized (Root) {
+                Node node = leafInsertNode(topicItem);
+                node.subs.add(session);
+            }
+
         }
 
         public static void unSubSucrible( String topic, MqttSession session) {
             String[] topicItem = topic.split("\\/");
-            Node node = leafSearchNode(topicItem);
-            if( node != null ) {
-                node.subs.remove(session);
-                nodeCleanup(node, topicItem);
-
+            synchronized (Root) {
+                Node node = leafSearchNode(topicItem);
+                if( node != null ) {
+                    node.subs.remove(session);
+                    nodeCleanup(node, topicItem);
+                }
             }
-
         }
 
         public static void nodeCleanup(Node root, String[] levels) {

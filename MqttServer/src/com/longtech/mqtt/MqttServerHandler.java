@@ -60,18 +60,15 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
             @Override
             public void run() {
 
-                try
-                {
+                try {
                     //处理mqtt消息
-                    if (((MqttMessage)request).decoderResult().isSuccess())
-                    {
+                    if (((MqttMessage) request).decoderResult().isSuccess()) {
                         SystemMonitor.reqCount.incrementAndGet();
                         SystemMonitor.allReqCount.incrementAndGet();
-                        MqttMessage req = (MqttMessage)request;
-                        logger.debug("Receved Mqtt {}", req.fixedHeader().messageType() );
-                        SystemMonitor.recv_count.incrementAndGet();
-                        switch (req.fixedHeader().messageType())
-                        {
+                        MqttMessage req = (MqttMessage) request;
+                        logger.debug("Receved Mqtt {}", req.fixedHeader().messageType());
+
+                        switch (req.fixedHeader().messageType()) {
                             case CONNECT:
                                 SystemMonitor.connect_count.incrementAndGet();
                                 doConnectMessage(ctx, request);
@@ -83,6 +80,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
                                 doUnSubMessage(ctx, request);
                                 return;
                             case PUBLISH:
+                                SystemMonitor.recv_count.incrementAndGet();
                                 doPublishMessage(ctx, request);
                                 return;
                             case PINGREQ:
@@ -104,17 +102,17 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
                                 MqttSession session = MqttSessionManager.getInstance().getSession(ctx.channel());
                                 session.setAbnormalExit(false);
                                 ctx.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+                                if (session.isDebug()) {
+                                    logger.info("Session {} recv Disconnect", session.getClientid());
+                                }
                                 return;
                             default:
                                 return;
                         }
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     logger.error("ERROR", ex);
-                }
-                finally {
+                } finally {
                     ReferenceCountUtil.release(request);
                 }
             }
@@ -136,14 +134,15 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
 
                     MqttSession session = MqttSessionManager.getInstance().removeSession(ctx.channel());
                     if (session != null) {
-                        SystemMonitor.connectNumber.decrementAndGet();
+                        SystemMonitor.setConnectDetailNumber(session, -1);
                         logger.debug("connectNumber remove {} {}", session.getSid(), SystemMonitor.connectNumber.get());
                         session.unSubAllTopics();
                         session.publicOfflineEvent();
                         session.publicWillMessage();
                         LogicChecker.getInstance().removeClientid(session.getClientid(), session);
-                        logger.debug("Session {} has delete!", session.getClientid());
-
+                        if (session.isDebug()) {
+                            logger.info("Session {} has delete!", session.getClientid());
+                        }
                     }
 
                 }
@@ -272,7 +271,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
 
         //String user = message.variableHeader().name();
         String clientid = message.payload().clientIdentifier();
-        logger.debug("Session {} create", clientid);
+
         //将用户信息写入变量
 
         if (!ctx.channel().hasAttr(USER))
@@ -297,10 +296,13 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         session.setContext(ctx);
         session.setIpaddress((((SocketChannel) ctx.channel()).remoteAddress().getAddress().getHostAddress()));
         session.setPort((((SocketChannel) ctx.channel()).remoteAddress().getPort()));
-
+        session.setConnectPort((((SocketChannel) ctx.channel()).localAddress().getPort()));
         session.setWillTopic(message.payload().willTopic());
         session.setWillMessage(message.payload().willMessageInBytes());
         session.generateTimestamp();
+        if( session.isDebug() ) {
+            logger.info("Session {} create", clientid);
+        }
         logger.debug("GK add session: {} {}", session.getSid(), session.getTimestamp());
 
 //        MqttSession oldClientidSession = MqttSessionManager.getInstance().addSession(session, ctx.channel(),true);
@@ -313,7 +315,8 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
 
 
         session.publicOnlineEvent();
-        SystemMonitor.connectNumber.incrementAndGet();
+
+        SystemMonitor.setConnectDetailNumber(session,1);
         logger.debug("connectNumber add {} {}", session.getSid(), SystemMonitor.connectNumber.get());
         MqttSessionManager.getInstance().addSession(session, ctx.channel());
 
@@ -339,7 +342,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         MqttMessageIdVariableHeader header = MqttMessageIdVariableHeader.from(msgId);
         MqttSubAckPayload payload = new MqttSubAckPayload(0);
         MqttSubAckMessage suback = new MqttSubAckMessage(SUBACK_HEADER, header, payload);
-        ctx.writeAndFlush(suback);
+
         logger.debug("Send Mqtt {}", MqttMessageType.SUBACK);
         List<MqttTopicSubscription> topics = message.payload().topicSubscriptions();
 
@@ -349,10 +352,14 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
 //            MqttClientWorker.getInstance().subscribe(item.topicName(), session);
 
             if( session != null ) {
-                logger.debug("Session {} sub {} id {}", session.getClientid(), item, msgId );
+                if (session.isDebug()) {
+                    logger.info("Session {} sub {} id {}", session.getClientid(), item, msgId );
+                }
+
                 session.subTopics(item.topicName());
             }
         }
+        ctx.writeAndFlush(suback);
     }
 
     private void doUnSubMessage(ChannelHandlerContext ctx, Object request)
@@ -363,7 +370,6 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
             msgId = 1;
         MqttMessageIdVariableHeader header = MqttMessageIdVariableHeader.from(msgId);
         MqttUnsubAckMessage unsubAckMessage = new MqttUnsubAckMessage(UNSUBACK_HEADER, header);
-        ctx.writeAndFlush(unsubAckMessage);
 
         List<String> topics = message.payload().topics();
 
@@ -374,6 +380,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
                 session.unSubTopics(item);
             }
         }
+        ctx.writeAndFlush(unsubAckMessage);
     }
 
     private void doPubAck(ChannelHandlerContext ctx, Object request)
@@ -447,6 +454,9 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
             logger.error("Mqtt Qos2 Not Supported");
         }
 
+        if (session.isDebug()) {
+            logger.info("Session {} recv Publish {} {} qos {}", session.getClientid(), topic, bytes.length, message.fixedHeader().qosLevel());
+        }
 
         MqttClientWorker.getInstance().publicMessage(topic, bytes, session, 1);
     }
