@@ -407,6 +407,10 @@ public class MqttClientWorker {
 
                 @Override
                 public void dumpSubTopics(String[] topics) {
+                    if( topics == null || topics.length == 0) {
+                        return;
+                    }
+
                     if( currentClient == mClient && mClient.isConnected()) {
                         try {
                             int[] qoses = new int[topics.length];
