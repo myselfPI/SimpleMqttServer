@@ -35,6 +35,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
     public static Logger logger = LoggerFactory.getLogger(MqttServerHandler.class);
 
     private final AttributeKey<String> USER = AttributeKey.valueOf("user");
+    public static final AttributeKey<String> REASON = AttributeKey.valueOf("Reason");
 
     public static MqttFixedHeader CONNACK_HEADER = new MqttFixedHeader(MqttMessageType.CONNACK, false,MqttQoS.AT_MOST_ONCE,false,0);
     public static MqttFixedHeader SUBACK_HEADER = new MqttFixedHeader(MqttMessageType.SUBACK, false,MqttQoS.AT_MOST_ONCE,false,0);
@@ -101,6 +102,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
 //                        ctx.close();
                                 MqttSession session = MqttSessionManager.getInstance().getSession(ctx.channel());
                                 session.setAbnormalExit(false);
+                                ctx.channel().attr(REASON).set("RecvDisconnect");
                                 ctx.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
                                 if (session.isDebug()) {
                                     logger.info("Session {} recv Disconnect", session.getClientid());
@@ -141,7 +143,12 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
                         session.publicWillMessage();
                         LogicChecker.getInstance().removeClientid(session.getClientid(), session);
                         if (session.isDebug()) {
-                            logger.info("Session {} has delete!", session.getClientid());
+                            String reason = "";
+                            if (ctx.channel().hasAttr(REASON)) {
+                                reason = ctx.channel().attr(REASON).get();
+                            }
+
+                            logger.info("Session {} has delete! {}", session.getClientid(), reason);
                         }
                     }
 
@@ -157,8 +164,20 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         if (evt instanceof IdleStateEvent)
         {
             IdleStateEvent event = (IdleStateEvent)evt;
-            if (event.state().equals(IdleState.READER_IDLE))
-            {
+            ChannelPipeline pipeline = ctx.pipeline();
+            if( pipeline.get("webSocketHandler") != null) {
+                if (event.state().equals(IdleState.WRITER_IDLE)  )
+                {
+                    logger.debug("Timeout Mqtt");
+                    if( ctx.channel().isActive()) {
+                        ctx.channel().attr(REASON).set("WriteTimeout");
+                        ctx.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+                    }
+                }
+            }
+            else {
+                if (event.state().equals(IdleState.READER_IDLE)  )
+                {
 //                if (ctx.channel().hasAttr(USER)){
 //                    String user = ctx.channel().attr(USER).get();
 //                    log.debug("ctx heartbeat timeout,close!"+user);//+ctx);
@@ -171,14 +190,17 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
 //                        unconnectMap.put(user, new Long(1));
 //                    }
 //                }
-                logger.debug("Timeout Mqtt");
-                if( ctx.channel().isActive()) {
-                    ctx.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
-                }
+                    logger.debug("Timeout Mqtt");
+                    if( ctx.channel().isActive()) {
+                        ctx.channel().attr(REASON).set("ReadTimeout");
+                        ctx.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+                    }
 
 
 //                buildHearBeat(ctx);
+                }
             }
+
 //            else if(event.state().equals(IdleState.READER_IDLE))
 //            {
 ////                log.debug("发送心跳给客户端！");
@@ -197,8 +219,9 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         MqttMessage pingespMessage = new MqttMessage(header);
         ctx.writeAndFlush(pingespMessage);
         MqttSession session = MqttSessionManager.getInstance().getSession(ctx.channel());
-        if( session != null ) {
-            logger.debug("Session {} heat reo", session.getClientid());
+
+        if( session != null && session.isDebug() ) {
+            logger.info("Session {} pingpong", session.getClientid());
         }
 
     }
@@ -252,6 +275,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
             MqttConnAckVariableHeader variableheader = new MqttConnAckVariableHeader(MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USER_NAME_OR_PASSWORD, false);
             MqttConnAckMessage connAckMessage = new MqttConnAckMessage(CONNACK_HEADER, variableheader);
             //ctx.write(MQEncoder.doEncode(ctx.alloc(),connAckMessage));
+            ctx.channel().attr(REASON).set("USER_PASSWORD_WRONG");
             ctx.writeAndFlush(connAckMessage).addListener(ChannelFutureListener.CLOSE);
             logger.debug("Send Mqtt {} {}", MqttMessageType.CONNACK, MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USER_NAME_OR_PASSWORD);
             return;
@@ -265,7 +289,11 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
 //        pipeline.remove("timeout");
         if( message.variableHeader().keepAliveTimeSeconds() > 0 ) {
 //            pipeline.remove("timeout");
-            pipeline.replace("timeout","timeout", new IdleStateHandler(message.variableHeader().keepAliveTimeSeconds() + message.variableHeader().keepAliveTimeSeconds()/2, 0, 0, TimeUnit.SECONDS));
+            if( pipeline.get("webSocketHandler") != null) {
+                pipeline.replace("timeout","timeout", new IdleStateHandler(message.variableHeader().keepAliveTimeSeconds() + message.variableHeader().keepAliveTimeSeconds()/2, message.variableHeader().keepAliveTimeSeconds() + message.variableHeader().keepAliveTimeSeconds()/2, 0, TimeUnit.SECONDS));
+            }else {
+                pipeline.replace("timeout","timeout", new IdleStateHandler(message.variableHeader().keepAliveTimeSeconds() + message.variableHeader().keepAliveTimeSeconds()/2, 0, 0, TimeUnit.SECONDS));
+            }
         }
 
 
@@ -466,6 +494,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
     {
         logger.error("ERROR exceptionCaught", cause);
         if( ctx.channel().isActive()) {
+            ctx.channel().attr(REASON).set("exceptionCaught:"+cause.toString());
             ctx.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
         }
     }

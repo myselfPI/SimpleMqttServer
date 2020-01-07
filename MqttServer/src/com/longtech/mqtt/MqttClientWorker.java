@@ -99,6 +99,10 @@ public class MqttClientWorker {
         mSendingWorkingExecutor = Executors.newSingleThreadExecutor();
     }
 
+    public int connectStatus() {
+        return hasConnectborker;
+    }
+
 
     public void startClient() {
 
@@ -144,6 +148,9 @@ public class MqttClientWorker {
     private  String server_address = "";
     public void setServerAddress(String val) {
         server_address = val;
+    }
+    public String getServerAddress() {
+        return server_address;
     }
 
     private Object lockObj = new Object();
@@ -697,6 +704,7 @@ public class MqttClientWorker {
 
     public void stopClient() {
         exitWorker = true;
+        hasConnectborker = 0;
 //        List<Runnable> worker = mRecvingWorkingExecutor.shutdownNow();
 //        worker = mSendingWorkingExecutor.shutdownNow();
         mHeartBeatFuture.cancel(true);

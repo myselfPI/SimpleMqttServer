@@ -172,6 +172,7 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
     protected boolean isKick = false;
     public void kick() {
         if( context.channel().isActive()) {
+            context.channel().attr(MqttServerHandler.REASON).set("Kick");
             context.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
             if( debug) {
                 logger.info("Session {} kick out", clientid);

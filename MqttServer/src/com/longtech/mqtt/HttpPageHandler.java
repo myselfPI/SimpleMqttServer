@@ -250,6 +250,19 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
         jsonObj.put("count_wss", SystemMonitor.mqtt_wss_count);
         jsonObj.put("send_count", SystemMonitor.send_count.get());
         jsonObj.put("recv_count", SystemMonitor.recv_count.get());
+
+        int stauts = MqttClientWorker.getInstance().connectStatus();
+        String strstatus = "SingleServer";
+        if ( stauts == 1 ) {
+            strstatus = "Connecting";
+        }else if ( stauts == 2) {
+            strstatus = "Connected";
+        }
+//        obj.put("addr",address);
+        jsonObj.put("node", MqttClientWorker.getInstance().getServerAddress());
+        jsonObj.put("status",strstatus);
+        jsonObj.put("statuscode", stauts);
+
         successReturn(ctx, req, jsonObj);
     }
 
@@ -288,6 +301,23 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
         MqttClientWorker.getInstance().stopClient();
         JSONObject obj = new JSONObject();
 //        obj.put("addr",address);
+        successReturn(ctx, req, obj);
+    }
+
+    public static void cluster(HttpRequest req, ChannelHandlerContext ctx, Map<String,String> params) {
+        int stauts = MqttClientWorker.getInstance().connectStatus();
+        String strstatus = "SingleServer";
+        if ( stauts == 1 ) {
+            strstatus = "Connecting";
+        }else if ( stauts == 2) {
+            strstatus = "Connected";
+        }
+
+        JSONObject obj = new JSONObject();
+//        obj.put("addr",address);
+        obj.put("node", MqttClientWorker.getInstance().getServerAddress());
+        obj.put("status",strstatus);
+        obj.put("statuscode", stauts);
         successReturn(ctx, req, obj);
     }
 }
