@@ -109,8 +109,39 @@ public class MqttClientWorker {
         if( isServer ) {
             return;
         }
-
+        SystemMonitor.mqtt_cluster_topic.set(0L);
         exitWorker = false;
+
+        Future<?> submit = mRecvingWorkingExecutor.submit(new Runnable() {
+            @Override
+            public void run() {
+
+            }
+        });
+        try {
+            submit.get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+
+        submit = mSendingWorkingExecutor.submit(new Runnable() {
+            @Override
+            public void run() {
+
+            }
+        });
+        try {
+            submit.get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+
+        messageRecvingQueue.clear();
+        messageSendingQueue.clear();
 
         tryConnectAndSubScrible();
         ProcessMessageQueue();
@@ -288,6 +319,7 @@ public class MqttClientWorker {
                     @Override
                     public void connectionLost(Throwable throwable) {
                         try {
+                            SystemMonitor.mqtt_cluster_topic.set(0L);
                             messageRecvingQueue.putFirst(new DataHolder(3));
                         } catch (InterruptedException e) {
                             e.printStackTrace();
@@ -384,14 +416,21 @@ public class MqttClientWorker {
             TopicStore.queryDumpAndMonitorTopics(new TopicStore.Topiclistener() {
                 @Override
                 public void topicSubEvent(String topic) {
+
+                    SystemMonitor.objDebuger1 = currentClient;
+                    SystemMonitor.objDebuger2 = mClient;
+//                    logger.info("cluster try sub topic {}", topic);
                     if( currentClient == mClient && mClient.isConnected()) {
                         if( currentClient == mClient && mClient.isConnected()) {
                             try {
+//                                logger.info("cluster sub topic {}", topic);
                                 IMqttToken token = currentClient.subscribe(topic, 0);
+                                SystemMonitor.mqtt_cluster_topic.incrementAndGet();
 //                                token.waitForCompletion();
 //                                if(token.isComplete()) {
 //                                }
                             } catch (MqttException e) {
+                                logger.error("TopicStore Sub error {}",e.toString(), e);
                                 e.printStackTrace();
                             }
                         }
@@ -400,13 +439,17 @@ public class MqttClientWorker {
 
                 @Override
                 public void topicUnsubEvent(String topic) {
+//                    logger.info("cluster try unsub topic {}", topic);
                     if( currentClient == mClient && mClient.isConnected()) {
                         try {
+//                            logger.info("cluster unsub topic {}", topic);
+                            SystemMonitor.mqtt_cluster_topic.decrementAndGet();
                             IMqttToken token = currentClient.unsubscribe(topic);
 //                            token.waitForCompletion();
 //                            if(token.isComplete()) {
 //                            }
                         } catch (MqttException e) {
+                            logger.error("TopicStore Unsub error {}",e.toString(), e);
                             e.printStackTrace();
                         }
                     }
@@ -417,15 +460,18 @@ public class MqttClientWorker {
                     if( topics == null || topics.length == 0) {
                         return;
                     }
-
+//                    logger.info("cluster try dumpsub topic {}", topics.length);
                     if( currentClient == mClient && mClient.isConnected()) {
                         try {
                             int[] qoses = new int[topics.length];
+//                            logger.info("cluster dumpsub topic {}", topics.length);
+                            SystemMonitor.mqtt_cluster_topic.addAndGet(topics.length);
                             IMqttToken token = currentClient.subscribe(topics, qoses);
 //                            token.waitForCompletion();
 //                            if(token.isComplete()) {
 //                            }
                         } catch (MqttException e) {
+                            logger.error("TopicStore dumpSub error {}",e.toString(), e);
                             e.printStackTrace();
                         }
                     }
@@ -433,6 +479,7 @@ public class MqttClientWorker {
 
                 @Override
                 public void pubTopics(String topic, byte[] data) {
+//                    logger.info("cluster rece topic {} {}", topic, data.length);
                     if( currentClient == mClient && mClient.isConnected()) {
                         try {
                             currentClient.publish(topic,data,0,false);
@@ -534,6 +581,7 @@ public class MqttClientWorker {
         mSendingWorkingExecutor.execute(new Runnable() {
             @Override
             public void run() {
+                logger.debug("mSendingWorkingExecutor begin");
                 while (!exitWorker) {
                     try {
                         DataHolder dh = messageSendingQueue.poll(3, TimeUnit.SECONDS);
@@ -545,6 +593,9 @@ public class MqttClientWorker {
                             lockClient.unlock();
                             //连接订阅成功
                             if( clientTemp != null && clientTemp.isConnected() && hasConnectborker == 2) {
+                                break;
+                            }
+                            if( exitWorker) {
                                 break;
                             }
                             //连接订阅失败
@@ -599,12 +650,14 @@ public class MqttClientWorker {
                         e.printStackTrace();
                     }
                 }
+                logger.debug("mSendingWorkingExecutor done");
             }
         });
         //接收消息
         mRecvingWorkingExecutor.execute(new Runnable() {
             @Override
             public void run() {
+                logger.debug("mRecvingWorkingExecutor begin");
                 int retryConnectTime = 1;
                 while (!exitWorker) {
                     try {
@@ -698,13 +751,15 @@ public class MqttClientWorker {
                     }
 
                 }
+
+                logger.debug("mRecvingWorkingExecutor done");
             }
         });
     }
 
     public void stopClient() {
         exitWorker = true;
-        hasConnectborker = 0;
+
 //        List<Runnable> worker = mRecvingWorkingExecutor.shutdownNow();
 //        worker = mSendingWorkingExecutor.shutdownNow();
         mHeartBeatFuture.cancel(true);
@@ -715,6 +770,38 @@ public class MqttClientWorker {
 //                e.printStackTrace();
             }
         }
+
+        messageRecvingQueue.clear();
+        messageSendingQueue.clear();
+        Future<?> submit = mRecvingWorkingExecutor.submit(new Runnable() {
+            @Override
+            public void run() {
+
+            }
+        });
+        try {
+            submit.get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+
+        submit = mSendingWorkingExecutor.submit(new Runnable() {
+            @Override
+            public void run() {
+
+            }
+        });
+        try {
+            submit.get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        SystemMonitor.mqtt_cluster_topic.set(0L);
+        hasConnectborker = 0;
     }
 
     public void deleveryMessage(String topic, byte[] data, MqttSession srcSession) {

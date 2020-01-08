@@ -24,7 +24,7 @@ public class TopicStore {
         void pubTopics(String topic, byte[] data);
     }
 
-    public volatile static Topiclistener mListener = null;
+    public static Topiclistener mListener = null;
     public static void setlistener(Topiclistener topiclistener) {
         mListener = topiclistener;
     };
@@ -94,6 +94,7 @@ public class TopicStore {
                 int i = 0;
                 for(Map.Entry<String, AtomicLong> item : alltopics.entrySet()) {
                     topics[i] = item.getKey();
+                    i++;
                 }
 
                 if( listener != null ) {

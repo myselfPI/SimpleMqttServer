@@ -229,6 +229,7 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
         jsonObj.put("count_ssl", SystemMonitor.mqtt_ssl_count);
         jsonObj.put("count_ws", SystemMonitor.mqtt_ws_count);
         jsonObj.put("count_wss", SystemMonitor.mqtt_wss_count);
+        jsonObj.put("cluster_topic",SystemMonitor.mqtt_cluster_topic.get());
         successReturn(ctx, req, jsonObj);
     }
 
@@ -250,7 +251,7 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
         jsonObj.put("count_wss", SystemMonitor.mqtt_wss_count);
         jsonObj.put("send_count", SystemMonitor.send_count.get());
         jsonObj.put("recv_count", SystemMonitor.recv_count.get());
-
+        jsonObj.put("cluster_topic",SystemMonitor.mqtt_cluster_topic.get());
         int stauts = MqttClientWorker.getInstance().connectStatus();
         String strstatus = "SingleServer";
         if ( stauts == 1 ) {
@@ -318,6 +319,9 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
         obj.put("node", MqttClientWorker.getInstance().getServerAddress());
         obj.put("status",strstatus);
         obj.put("statuscode", stauts);
+        obj.put("cluster_topic",SystemMonitor.mqtt_cluster_topic.get());
+        obj.put("obj1", SystemMonitor.objDebuger1);
+        obj.put("obj2", SystemMonitor.objDebuger2);
         successReturn(ctx, req, obj);
     }
 }

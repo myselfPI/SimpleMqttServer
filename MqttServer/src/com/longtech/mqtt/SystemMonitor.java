@@ -36,6 +36,9 @@ public class SystemMonitor {
     public static AtomicLong mqtt_ssl_count = new AtomicLong();
     public static AtomicLong mqtt_ws_count = new AtomicLong();
     public static AtomicLong mqtt_wss_count = new AtomicLong();
+    public static AtomicLong mqtt_cluster_topic = new AtomicLong();
+    public static Object objDebuger1 = null;
+    public static Object objDebuger2 = null;
 
     public static void setConnectDetailNumber(MqttSession session, long val) {
         SystemMonitor.connectNumber.getAndAdd(val);
