@@ -49,17 +49,16 @@ public class TopicStore {
         mWorkingExecutor.execute(new Runnable() {
             @Override
             public void run() {
-                AtomicLong counts = CommonUtils.getBean(alltopics,topic,AtomicLong.class);
-                if( counts.decrementAndGet() == 0 ) {
+                AtomicLong counts = alltopics.get(topic);// CommonUtils.getBean(alltopics,topic,AtomicLong.class);
+                if( counts != null && counts.decrementAndGet() <= 0 ) {
                     alltopics.remove(topic);
                 }
 
-                if( mListener != null && counts.get() == 0 ) {
+                if( mListener != null && counts != null && counts.get() <= 0 ) {
                     mListener.topicUnsubEvent(topic);
                 }
             }
         });
-
     }
 
     public static void publishTopicData(final String topic, final byte[] data) {

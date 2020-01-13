@@ -48,6 +48,7 @@ public class MqttServerInitializer extends ChannelInitializer<SocketChannel> {
             pipeline.addLast(SERVER_HANDLER);
             pipeline.addLast(MqttEncoder.INSTANCE);
         */
+            pipeline.addLast("timeoutAbsolute", new IdleStateHandler(0, 20, 0, TimeUnit.SECONDS));
             pipeline.addLast(new MqttHttpPortUnificationServer());
 //            pipeline.addLast(new MqttDecoder(20 * 1024*1024));
 //            pipeline.addLast(MqttEncoder.INSTANCE);

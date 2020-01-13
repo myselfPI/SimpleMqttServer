@@ -30,7 +30,10 @@ public class MqttSessionManager {
 
     public void addSession( MqttSession session, Channel channel) {
 
-        clientidMap.put(session.getClientid(), session);
+        if( session.getClientid() != null ) {
+            clientidMap.put(session.getClientid(), session);
+        }
+
         sessionMap.put(channel, session);
     }
 
@@ -48,7 +51,7 @@ public class MqttSessionManager {
     public MqttSession removeSession(Channel channel) {
 
         MqttSession session = sessionMap.remove(channel);
-        if( session != null ) {
+        if( session != null && session.getClientid() != null ) {
             MqttSession currentSession = clientidMap.get(session.getClientid());
             if( currentSession.context.channel() == channel) {
                 clientidMap.remove(session.getClientid());

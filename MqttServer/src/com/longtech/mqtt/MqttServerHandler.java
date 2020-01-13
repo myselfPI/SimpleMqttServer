@@ -34,7 +34,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
 
     public static Logger logger = LoggerFactory.getLogger(MqttServerHandler.class);
 
-    private final AttributeKey<String> USER = AttributeKey.valueOf("user");
+    public static final AttributeKey<String> USER = AttributeKey.valueOf("user");
     public static final AttributeKey<String> REASON = AttributeKey.valueOf("Reason");
 
     public static MqttFixedHeader CONNACK_HEADER = new MqttFixedHeader(MqttMessageType.CONNACK, false,MqttQoS.AT_MOST_ONCE,false,0);
@@ -112,6 +112,12 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
                                 return;
                         }
                     }
+                    else {
+                        if( ctx.channel().isActive()) {
+                            ctx.channel().attr(REASON).set("InvalidPackage");
+                            ctx.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+                        }
+                    }
                 } catch (Exception ex) {
                     logger.error("ERROR", ex);
                 } finally {
@@ -133,7 +139,6 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
 //            String user = ctx.channel().attr(USER).get();
 //            userMap.remove(user);
 //            userOnlineMap.remove(user);
-
                     MqttSession session = MqttSessionManager.getInstance().removeSession(ctx.channel());
                     if (session != null) {
                         SystemMonitor.setConnectDetailNumber(session, -1);

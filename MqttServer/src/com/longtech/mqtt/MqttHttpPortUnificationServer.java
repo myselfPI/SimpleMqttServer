@@ -5,6 +5,8 @@ import com.longtech.mqtt.codec.ByteBufToWebSocketFrameEncoder;
 import com.longtech.mqtt.codec.MqttDecoder;
 import com.longtech.mqtt.codec.WebSocketFrameToByteBufDecoder;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -13,6 +15,8 @@ import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.codec.mqtt.MqttEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
 import java.util.List;
@@ -76,14 +80,14 @@ public class MqttHttpPortUnificationServer extends ByteToMessageDecoder {
                 .addLast("timeout", new IdleStateHandler(Constants.CLIENT_TIMEOUT, 0, 0, TimeUnit.SECONDS))
                 .addLast(SERVER_HANDLER);
         pipeline.remove(this);
-
+        pipeline.remove("timeoutAbsolute");
 //                .addLast("messageLogger", MQTTLogHandler.INSTANCE)
 //                .addLast("handler", this.mqttHandler);
 
 
     }
     private static final MqttServerHandler SERVER_HANDLER = new MqttServerHandler();
-    private void switchToMqtt(ChannelHandlerContext ctx) {
+    private void switchToMqtt(final ChannelHandlerContext ctx) {
         ChannelPipeline pipeline = ctx.pipeline();
 //        pipeline.addLast(new LoggingHandler(LogLevel.DEBUG));
         pipeline.addLast(new MqttDecoder(20 * 1024*1024));
@@ -91,5 +95,34 @@ public class MqttHttpPortUnificationServer extends ByteToMessageDecoder {
         pipeline.addLast("timeout", new IdleStateHandler(Constants.CLIENT_TIMEOUT, 0, 0, TimeUnit.SECONDS));
         pipeline.addLast(SERVER_HANDLER);
         pipeline.remove(this);
+        pipeline.remove("timeoutAbsolute");
+        ctx.executor().schedule(new Runnable() {
+            @Override
+            public void run() {
+                if( ctx.channel().isActive()) {
+                    if( !ctx.channel().hasAttr(MqttServerHandler.USER)) {
+                        ctx.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+                    }
+                }
+            }
+        },30,TimeUnit.SECONDS);
     }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception
+    {
+        if (evt instanceof IdleStateEvent)
+        {
+            IdleStateEvent event = (IdleStateEvent)evt;
+            ChannelPipeline pipeline = ctx.pipeline();
+            if (event.state().equals(IdleState.WRITER_IDLE)  )
+            {
+                if( ctx.channel().isActive()) {
+                    ctx.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+                }
+            }
+        }
+        super.userEventTriggered(ctx, evt);
+    }
+
 }
