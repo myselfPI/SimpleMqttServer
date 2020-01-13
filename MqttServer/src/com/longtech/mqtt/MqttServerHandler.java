@@ -2,6 +2,7 @@ package com.longtech.mqtt;
 
 import com.longtech.mqtt.BL.LogicChecker;
 import com.longtech.mqtt.Utils.JWTUtil;
+import com.longtech.mqtt.Utils.WrapperRunnable;
 import com.longtech.mqtt.cluster.MqttServerNodeSession;
 import com.longtech.mqtt.cluster.NodeManager;
 import io.netty.buffer.ByteBuf;
@@ -57,9 +58,9 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
     public void channelRead0(final ChannelHandlerContext ctx, final Object request) throws Exception
     {
         ReferenceCountUtil.retain(request);
-        ctx.executor().execute(new Runnable() {
+        ctx.executor().execute(new WrapperRunnable() {
             @Override
-            public void run() {
+            public void execute() {
 
                 try {
                     //处理mqtt消息
@@ -131,9 +132,9 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
     @Override
     public void channelInactive(final ChannelHandlerContext ctx)
     {
-        ctx.executor().execute(new Runnable() {
+        ctx.executor().execute(new WrapperRunnable() {
             @Override
-            public void run() {
+            public void execute() {
                 //清理用户缓存
                 if (ctx.channel().hasAttr(USER)) {
 //            String user = ctx.channel().attr(USER).get();
@@ -141,6 +142,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
 //            userOnlineMap.remove(user);
                     MqttSession session = MqttSessionManager.getInstance().removeSession(ctx.channel());
                     if (session != null) {
+
                         SystemMonitor.setConnectDetailNumber(session, -1);
                         logger.debug("connectNumber remove {} {}", session.getSid(), SystemMonitor.connectNumber.get());
                         session.unSubAllTopics();

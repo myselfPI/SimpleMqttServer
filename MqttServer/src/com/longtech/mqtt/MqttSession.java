@@ -2,6 +2,7 @@ package com.longtech.mqtt;
 
 import com.alibaba.fastjson.annotation.JSONField;
 import com.longtech.mqtt.Utils.DiskUtilMap;
+import com.longtech.mqtt.Utils.WrapperRunnable;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -56,9 +57,9 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
     }
 
     public void sendData( final String topic, final byte[] data ) {
-        context.executor().execute(new Runnable() {
+        context.executor().execute(new WrapperRunnable() {
             @Override
-            public void run() {
+            public void execute() {
                 if( context.channel().isActive()) {
                     MqttPublishMessage pubMsg = MqttServerHandler.buildPublish(topic, data, messageid.getAndIncrement());
                     context.writeAndFlush(pubMsg);
