@@ -53,7 +53,7 @@ public class MqttSessionManager {
         MqttSession session = sessionMap.remove(channel);
         if( session != null && session.getClientid() != null ) {
             MqttSession currentSession = clientidMap.get(session.getClientid());
-            if( currentSession.context.channel() == channel) {
+            if( currentSession != null && currentSession.context != null && currentSession.context.channel() == channel) {
                 clientidMap.remove(session.getClientid());
             }
         }
