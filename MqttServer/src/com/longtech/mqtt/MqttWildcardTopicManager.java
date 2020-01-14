@@ -355,21 +355,23 @@ public class MqttWildcardTopicManager {
         public static void subscriptionRecurseSearch(Node root,  String[] levels, int offset, ArrayList<MqttSession> session) {
             if( levels.length == offset ) {
                 session.addAll(root.subs);
-                if( root.children.containsKey("#") ) {
-                    session.addAll(root.children.get("#").subs);
+                Node target = root.children.get("#");
+                if( target != null ) {
+                    session.addAll(target.subs);
                 }
             }
             else {
-                if( root.children.containsKey("#") && levels[offset].length() > 0 ) {
-                    session.addAll(root.children.get("#").subs);
+                Node target = root.children.get("#");
+                if( target != null && levels[offset].length() > 0 ) {
+                    session.addAll(target.subs);
                 }
-
-                if( root.children.containsKey(levels[offset])) {
-                    subscriptionRecurseSearch(root.children.get(levels[offset]), levels, offset + 1,session);
+                target = root.children.get(levels[offset]);
+                if( target != null) {
+                    subscriptionRecurseSearch(target, levels, offset + 1,session);
                 }
-
-                if( root.children.containsKey("+")) {
-                    subscriptionRecurseSearch(root.children.get("+"),levels, offset + 1, session);
+                target = root.children.get("+");
+                if( target != null) {
+                    subscriptionRecurseSearch(target,levels, offset + 1, session);
                 }
             }
         }
