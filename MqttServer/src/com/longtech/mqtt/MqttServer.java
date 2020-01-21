@@ -52,11 +52,17 @@ public class MqttServer {
     static int WS_Port = 0;
     static int WSS_Port = 0;
     static int CTL_Port = 0;
+    static int CLUSTER_Port = 0;
     static int CTL_SSL_Port = 0;
 
     public static void main(String[] args) {
 
         InternalLoggerFactory.setDefaultFactory(Slf4JLoggerFactory.INSTANCE);
+
+        if ( args.length >= 1) {
+            CommonUtils.filename = args[0];
+        }
+
 //        boolean res = JWTUtil.checkPassword("hello","eyJ0eXBlIjoiSldUIiwiYWxnIjoiSFMyNTYifQ.eyJuYW1lIjoiYm9iIiwgImFnZSI6NTAsInNhbHQiOjE4NDk4NDc1MjR9.vBx9rFftMuzxwQkEuDgU2ejxDnFKOpbWFYeIAJh9nO0");
 //        ConcurrentHashMap<String, String> testRet = null;
 //        DiskUtilMap.put("keya", "val1");
@@ -111,6 +117,7 @@ public class MqttServer {
         WSS_Port = CommonUtils.getIntValue("wss_port",8084);
         CTL_Port = CommonUtils.getIntValue("controller_port",18083);
         CTL_SSL_Port = CommonUtils.getIntValue("controller_ssl_port",18084);
+        CLUSTER_Port = CommonUtils.getIntValue("cluster_port",18383);
 
         boolean SSL = false;
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
@@ -178,6 +185,7 @@ public class MqttServer {
             futures.add(b.bind(WSS_Port).sync());
             futures.add(b.bind(CTL_Port).sync());
             futures.add(b.bind(CTL_SSL_Port).sync());
+            futures.add(b.bind(CLUSTER_Port).sync());
             for (ChannelFuture f: futures) {
                 f.sync();
             }
@@ -188,7 +196,7 @@ public class MqttServer {
 //                ch1 = b.bind(ADDRESS_IPV6, PORT_IPV6).sync().channel();
 //            }
 
-            System.out.println("System start success at port:" + TCP_Port + " " + SSL_Port + " " + WS_Port + " " + WSS_Port + " " + CTL_Port);
+            System.out.println("System start success at port:" + TCP_Port + " " + SSL_Port + " " + WS_Port + " " + WSS_Port + " " + CTL_Port + " " + CLUSTER_Port);
 
             for (ChannelFuture f: futures) {
                 f.channel().closeFuture().sync();

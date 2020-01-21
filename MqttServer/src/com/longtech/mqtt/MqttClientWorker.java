@@ -570,7 +570,7 @@ public class MqttClientWorker {
 //                e.printStackTrace();
 //            }
 
-
+            deleveryMessage(topic,data,srcSession);
             TopicStore.publishTopicData(topic,data);
         }
 
@@ -822,6 +822,12 @@ public class MqttClientWorker {
                 sharedSession.add(session);
                 continue;
             }
+
+            if( session != null && session == srcSession && session.getConectPort() == MqttServer.CLUSTER_Port ) {
+                // cluster client
+                continue;
+            }
+
             session.sendData(topic, data);
         }
 //        if (sharedSession.size() > 0 ) {

@@ -18,18 +18,12 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class CommonUtils {
     static Properties config = null;
+    public static String filename = "config.properties";
     public static void loadConfig() {
 
-        String filename = "config.properties";
-        long configType = getConfig();
-        if( 1 == configType ) {
-            filename = "config1.properties";
-        }
-        else if( 2 == configType ) {
-            filename = "config2.properties";
-        }
+//        String filename = "config.properties";
 
-        System.out.println("use " + filename + " " + configType );
+        System.out.println("use " + filename );
         try {
             InputStream input = null;
             input= new FileInputStream(filename);
