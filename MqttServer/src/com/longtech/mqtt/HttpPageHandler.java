@@ -7,6 +7,7 @@ import com.longtech.mqtt.cluster.NodeManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
 import io.netty.util.internal.StringUtil;
@@ -319,7 +320,7 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
         obj.put("node", MqttClientWorker.getInstance().getServerAddress());
         obj.put("status",strstatus);
         obj.put("statuscode", stauts);
-        obj.put("cluster_topic",SystemMonitor.mqtt_cluster_topic.get());
+        obj.put("cluster_topic", SystemMonitor.mqtt_cluster_topic.get());
         obj.put("obj1", SystemMonitor.objDebuger1);
         obj.put("obj2", SystemMonitor.objDebuger2);
         successReturn(ctx, req, obj);
