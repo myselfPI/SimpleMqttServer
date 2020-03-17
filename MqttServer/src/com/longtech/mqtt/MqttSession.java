@@ -121,7 +121,15 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
     }
 
     public void unSubTopics(String topic) {
-        if( wildChardTopics.contains(topic)) {
+        boolean isExist = false;
+        synchronized (wildChardTopics) {
+            isExist = wildChardTopics.contains(topic);
+            if( isExist ) {
+                wildChardTopics.remove(topic);
+            }
+        }
+
+        if( isExist ) {
             MqttWildcardTopicManager.getInstance().removeTopic(topic,this);
         }
         else {
@@ -138,6 +146,7 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
         HashSet<String> tmpTopics = new HashSet<>();
         synchronized (topics) {
             tmpTopics.addAll(topics);
+            topics.clear();
         }
         for(String topic: tmpTopics) {
             MqttClientWorker.getInstance().unSubscribe(topic,this);
@@ -145,6 +154,7 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
         tmpTopics.clear();
         synchronized (wildChardTopics) {
             tmpTopics.addAll(wildChardTopics);
+            wildChardTopics.clear();
         }
         for(String topic: tmpTopics) {
             MqttClientWorker.getInstance().unSubscribe(topic,this);
