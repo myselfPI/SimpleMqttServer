@@ -282,7 +282,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         //String user = message.variableHeader().name();
         String clientid = message.payload().clientIdentifier();
         // temp disable password check
-        if( true && ACLController.checkPassword(username, pwd, clientid, ip)) {
+        if( true && !ACLController.checkPassword(username, pwd, clientid, ip)) {
             MqttConnAckVariableHeader variableheader = new MqttConnAckVariableHeader(MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USER_NAME_OR_PASSWORD, false);
             MqttConnAckMessage connAckMessage = new MqttConnAckMessage(CONNACK_HEADER, variableheader);
             //ctx.write(MQEncoder.doEncode(ctx.alloc(),connAckMessage));
