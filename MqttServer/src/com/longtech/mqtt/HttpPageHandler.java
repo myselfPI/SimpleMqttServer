@@ -2,6 +2,7 @@ package com.longtech.mqtt;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.longtech.mqtt.BL.ACLController;
 import com.longtech.mqtt.Utils.CommonUtils;
 import com.longtech.mqtt.cluster.NodeManager;
 import io.netty.buffer.ByteBuf;
@@ -319,9 +320,16 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
         obj.put("node", MqttClientWorker.getInstance().getServerAddress());
         obj.put("status",strstatus);
         obj.put("statuscode", stauts);
-        obj.put("cluster_topic",SystemMonitor.mqtt_cluster_topic.get());
+        obj.put("cluster_topic", SystemMonitor.mqtt_cluster_topic.get());
         obj.put("obj1", SystemMonitor.objDebuger1);
         obj.put("obj2", SystemMonitor.objDebuger2);
+        successReturn(ctx, req, obj);
+    }
+
+    public static void reloadip(HttpRequest req, ChannelHandlerContext ctx, Map<String,String> params) {
+        ACLController.reloadIP();
+        JSONObject obj = new JSONObject();
+        obj.put("whiteips",ACLController.AllowAnyTopicIp);
         successReturn(ctx, req, obj);
     }
 }

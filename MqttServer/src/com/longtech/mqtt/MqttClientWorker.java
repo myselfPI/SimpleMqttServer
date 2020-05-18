@@ -352,11 +352,11 @@ public class MqttClientWorker {
         try {
             if (mClient != null) {
                 MqttConnectOptions options = new MqttConnectOptions();
-//                options.setUserName("");
-//                String pwd = "";
-//                char[] pwdBuf = new char[pwd.length()];
-//                pwd.getChars(0, pwd.length(), pwdBuf, 0);
-//                options.setPassword(pwdBuf);
+                options.setUserName("serveraihelp");
+                String pwd = "pwdaihelp2020";
+                char[] pwdBuf = new char[pwd.length()];
+                pwd.getChars(0, pwd.length(), pwdBuf, 0);
+                options.setPassword(pwdBuf);
                 options.setKeepAliveInterval(60 * 2);
                 token = mClient.connect(options);
                 token.waitForCompletion(5000);

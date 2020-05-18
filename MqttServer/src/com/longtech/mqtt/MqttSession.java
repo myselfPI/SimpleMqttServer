@@ -1,6 +1,7 @@
 package com.longtech.mqtt;
 
 import com.alibaba.fastjson.annotation.JSONField;
+import com.longtech.mqtt.BL.ACLController;
 import com.longtech.mqtt.Utils.DiskUtilMap;
 import com.longtech.mqtt.Utils.WrapperRunnable;
 import io.netty.buffer.Unpooled;
@@ -99,6 +100,11 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
     }
 
     public void subTopics(String topic) {
+
+        if (!ACLController.IsAllowSub(this,topic)) {
+            return;
+        }
+
         if( MqttWildcardTopicManager.isWildcardTopic(topic)) {
             synchronized (wildChardTopics) {
                 wildChardTopics.add(topic);
@@ -149,6 +155,9 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
 
     private String clientid;
     private int port;
+    private String user;
+    private String pwd;
+
 
     protected ChannelHandlerContext context;
 
@@ -281,5 +290,21 @@ public class MqttSession implements java.lang.Comparable<MqttSession> {
 
     public int getConectPort() {
         return connect_port;
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
+    }
+
+    public String getPwd() {
+        return pwd;
+    }
+
+    public void setPwd(String pwd) {
+        this.pwd = pwd;
     }
 }

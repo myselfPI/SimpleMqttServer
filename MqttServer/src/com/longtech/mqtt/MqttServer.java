@@ -1,5 +1,6 @@
 package com.longtech.mqtt;
 
+import com.longtech.mqtt.BL.ACLController;
 import com.longtech.mqtt.BL.LogicChecker;
 import com.longtech.mqtt.Utils.CommonUtils;
 import com.longtech.mqtt.Utils.Constants;
@@ -134,6 +135,8 @@ public class MqttServer {
         try
         {
             Constants.init();
+            ACLController.init();
+
             MqttSessionManager.init();
             MqttClientWorker.init();
             SystemMonitor.init();

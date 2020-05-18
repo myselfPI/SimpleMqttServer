@@ -1,5 +1,6 @@
 package com.longtech.mqtt;
 
+import com.longtech.mqtt.BL.ACLController;
 import com.longtech.mqtt.BL.LogicChecker;
 import com.longtech.mqtt.Utils.JWTUtil;
 import com.longtech.mqtt.Utils.WrapperRunnable;
@@ -277,8 +278,11 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
             username = "";
         }
         String pwd = message.payload().password();
+        String ip = (((SocketChannel) ctx.channel()).remoteAddress().getAddress().getHostAddress());
+        //String user = message.variableHeader().name();
+        String clientid = message.payload().clientIdentifier();
         // temp disable password check
-        if( false && !JWTUtil.checkPassword(username,pwd)) {
+        if( true && ACLController.checkPassword(username, pwd, clientid, ip)) {
             MqttConnAckVariableHeader variableheader = new MqttConnAckVariableHeader(MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USER_NAME_OR_PASSWORD, false);
             MqttConnAckMessage connAckMessage = new MqttConnAckMessage(CONNACK_HEADER, variableheader);
             //ctx.write(MQEncoder.doEncode(ctx.alloc(),connAckMessage));
@@ -287,6 +291,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
             logger.debug("Send Mqtt {} {}", MqttMessageType.CONNACK, MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USER_NAME_OR_PASSWORD);
             return;
         }
+
         MqttConnAckVariableHeader variableheader = new MqttConnAckVariableHeader(MqttConnectReturnCode.CONNECTION_ACCEPTED, false);
         MqttConnAckMessage connAckMessage = new MqttConnAckMessage(CONNACK_HEADER, variableheader);
         //ctx.write(MQEncoder.doEncode(ctx.alloc(),connAckMessage));
@@ -304,8 +309,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         }
 
 
-        //String user = message.variableHeader().name();
-        String clientid = message.payload().clientIdentifier();
+
 
         //将用户信息写入变量
 
@@ -327,9 +331,11 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         else {
             session = new MqttServerNodeSession();
         }
+        session.setUser(username);
+        session.setPwd(pwd);
         session.setClientid(clientid);
         session.setContext(ctx);
-        session.setIpaddress((((SocketChannel) ctx.channel()).remoteAddress().getAddress().getHostAddress()));
+        session.setIpaddress(ip);
         session.setPort((((SocketChannel) ctx.channel()).remoteAddress().getPort()));
         session.setConnectPort((((SocketChannel) ctx.channel()).localAddress().getPort()));
         session.setWillTopic(message.payload().willTopic());
