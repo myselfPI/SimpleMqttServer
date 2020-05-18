@@ -331,6 +331,7 @@ public class HttpPageHandler extends SimpleChannelInboundHandler<FullHttpRequest
         ACLController.reloadIP();
         JSONObject obj = new JSONObject();
         obj.put("whiteips",ACLController.AllowAnyTopicIp);
+        obj.put("whiteusers",ACLController.AllowAnyUserPWD);
         successReturn(ctx, req, obj);
     }
 }

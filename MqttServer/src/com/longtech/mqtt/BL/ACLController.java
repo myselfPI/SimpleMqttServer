@@ -10,6 +10,7 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -114,9 +115,14 @@ public class ACLController {
         if( user.equals("aihelpConsoleBack") && pwd.equals("mqttZmkm2018")) {
             return true;
         }
+        if (AllowAnyUserPWD.size() > 0 ) {
+            if (AllowAnyUserPWD.containsKey(user + ":" +pwd)) {
+                return true;
+            }
+        }
         String newpwd = CommonUtils.stringMD5(user);
         if (!StringUtil.isNullOrEmpty(newpwd) && !newpwd.equals(pwd)) {
-            logger.info("Deny {} {} {} {}", user, pwd, newpwd, ip);
+//            logger.info("Deny {} {} {} {}", user, pwd, newpwd, ip);
             return false;
         }
         return true;
@@ -144,9 +150,8 @@ public class ACLController {
         }
         AllowAnyTopicIp.put("127.0.0.1",Boolean.TRUE);
 
-
         String userpwds = config.getProperty("white_user_list","").trim();
-        String[] userpwd = ips.split("\\ ");
+        String[] userpwd = userpwds.split("\\ ");
         AllowAnyUserPWD.clear();
         for ( String item: userpwd) {
             String normail_item = item.trim();
@@ -163,6 +168,14 @@ public class ACLController {
 
     public static void main(String[] args) {
         reloadIP();
+
+        for(Map.Entry<String,Boolean> item : AllowAnyUserPWD.entrySet()) {
+            System.out.println("[" + item.getKey()+ "]");
+        }
+
+        for(Map.Entry<String,Boolean> item : AllowAnyTopicIp.entrySet()) {
+            System.out.println( "[" + item.getKey() + "]" );
+        }
     }
 
 }
