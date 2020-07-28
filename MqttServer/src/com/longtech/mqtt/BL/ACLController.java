@@ -102,6 +102,11 @@ public class ACLController {
 
 
     public static boolean checkPassword(String user, String pwd, String clientid, String ip ) {
+
+        if( false) {
+            return true;
+        }
+
         if( AllowAnyTopicIp.containsKey(ip)) {
             return true;
         }
@@ -120,9 +125,13 @@ public class ACLController {
                 return true;
             }
         }
-        String newpwd = CommonUtils.stringMD5(user);
-        if (!StringUtil.isNullOrEmpty(newpwd) && !newpwd.equals(pwd)) {
+        String newpwd = CommonUtils.stringMD5(user).toLowerCase();
+        if( pwd == null ) {
+            pwd = "";
+        }
+        if (!StringUtil.isNullOrEmpty(newpwd) && !newpwd.equals(pwd.toLowerCase())) {
 //            logger.info("Deny {} {} {} {}", user, pwd, newpwd, ip);
+            logger.info("DENY {} {} {} {} {}",user,pwd,newpwd,ip,clientid);
             return false;
         }
         return true;
@@ -146,7 +155,7 @@ public class ACLController {
             if(StringUtil.isNullOrEmpty(normail_item)) {
                 continue;
             }
-            AllowAnyTopicIp.put(normail_item,Boolean.TRUE);
+            AllowAnyTopicIp.put(normail_item, Boolean.TRUE);
         }
         AllowAnyTopicIp.put("127.0.0.1",Boolean.TRUE);
 

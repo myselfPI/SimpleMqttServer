@@ -37,10 +37,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -49,12 +46,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MqttServer {
 
     static int TCP_Port = 0;
-    static int SSL_Port = 0;
+//    static int SSL_Port = 0;
+    static int[] SSL_Ports = null;
     static int WS_Port = 0;
-    static int WSS_Port = 0;
+    static int[] WSS_Ports = null;
+//    static int WSS_Port = 0;
     static int CTL_Port = 0;
     static int CLUSTER_Port = 0;
     static int CTL_SSL_Port = 0;
+    static HashMap<Integer,Integer> SPortsMap = new HashMap<>();
 
     public static void main(String[] args) {
 
@@ -113,11 +113,36 @@ public class MqttServer {
 //        String ADDRESS_IPV6 = CommonUtils.getValue("server_address_ipv6","::");
 
         TCP_Port = CommonUtils.getIntValue("tcp_port",1883);
-        SSL_Port = CommonUtils.getIntValue("ssl_port",1884);
+//        SSL_Port = CommonUtils.getIntValue("ssl_port",1884);
+        String ssl_ports = CommonUtils.getValue("ssl_port","1884");
+        String[] ssltokens = ssl_ports.split("\\,");
+        SSL_Ports = new int[ssltokens.length];
+        for( int i = 0; i < ssltokens.length; i++ ) {
+            try {
+                int val = Integer.parseInt(ssltokens[i]);
+                SSL_Ports[i] = val;
+                SPortsMap.put(val,i);
+            } catch (Exception e){
+                System.err.println("ssl_port set error");
+            }
+        }
         WS_Port = CommonUtils.getIntValue("ws_port", 8083);
-        WSS_Port = CommonUtils.getIntValue("wss_port",8084);
+        String wss_ports = CommonUtils.getValue("wss_port","8084");
+        String[] wsstokens = wss_ports.split("\\,");
+        WSS_Ports = new int[wsstokens.length];
+        for( int i = 0; i < wsstokens.length; i++ ) {
+            try {
+                int val = Integer.parseInt(wsstokens[i]);
+                WSS_Ports[i] = val;
+                SPortsMap.put(val,i);
+            } catch (Exception e){
+                System.err.println("wss_port set error");
+            }
+        }
+//        WSS_Port = CommonUtils.getIntValue("wss_port",8084);
         CTL_Port = CommonUtils.getIntValue("controller_port",18083);
         CTL_SSL_Port = CommonUtils.getIntValue("controller_ssl_port",18084);
+        SPortsMap.put(CTL_SSL_Port,0);
         CLUSTER_Port = CommonUtils.getIntValue("cluster_port",18383);
 
         boolean SSL = false;
@@ -178,17 +203,41 @@ public class MqttServer {
                 sslCtx = null;
             }
 
-            b.childHandler(new MqttServerInitializer(sslCtx));
+            SslContext[] sslCtxs = null;
+            if( Constants.CERT_FILES.length == Constants.KEY_FILES.length) {
+
+                sslCtxs = new SslContext[Constants.CERT_FILES.length];
+                for( int i = 0; i < Constants.CERT_FILES.length; i++ ) {
+                    SslContext tmp = null;
+                    try {
+                        tmp = SslContextBuilder.forServer(new File(Constants.CERT_FILES[i]), new File(Constants.KEY_FILES[i])).build();
+                    } catch (Exception e){
+                        tmp = null;
+                    }
+                    sslCtxs[i] = tmp;
+                }
+
+            } else {
+                System.err.println("Cert and Key files not match");
+            }
+
+            b.childHandler(new MqttServerInitializer(sslCtxs));
 //            Channel ch = b.bind(1883).sync().channel();
 //            Channel ch1 = b.bind(1884).sync().channel();
             List<ChannelFuture> futures = new ArrayList<>();
             futures.add(b.bind(TCP_Port).sync());
-            futures.add(b.bind(SSL_Port).sync());
+            for(int port : SSL_Ports) {
+                futures.add(b.bind(port).sync());
+            }
             futures.add(b.bind(WS_Port).sync());
-            futures.add(b.bind(WSS_Port).sync());
+            for(int port : WSS_Ports) {
+                futures.add(b.bind(port).sync());
+            }
+
             futures.add(b.bind(CTL_Port).sync());
             futures.add(b.bind(CTL_SSL_Port).sync());
             futures.add(b.bind(CLUSTER_Port).sync());
+
             for (ChannelFuture f: futures) {
                 f.sync();
             }
@@ -199,7 +248,7 @@ public class MqttServer {
 //                ch1 = b.bind(ADDRESS_IPV6, PORT_IPV6).sync().channel();
 //            }
 
-            System.out.println("System start success at port:" + TCP_Port + " " + SSL_Port + " " + WS_Port + " " + WSS_Port + " " + CTL_Port + " " + CLUSTER_Port);
+            System.out.println("System start success at port:" + TCP_Port + " " + CommonUtils.getArrayString(SSL_Ports) + " " + WS_Port + " " + CommonUtils.getArrayString(WSS_Ports) + " " + CTL_Port + " " + CLUSTER_Port);
 
             for (ChannelFuture f: futures) {
                 f.channel().closeFuture().sync();

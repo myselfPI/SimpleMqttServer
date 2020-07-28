@@ -21,6 +21,9 @@ public class Constants {
     public static String KEY_FILE = "";
     public static String CERT_FILE = "";
 
+    public static String[] KEY_FILES = null;
+    public static String[] CERT_FILES = null;
+
     public static final String HOST_NAME = "NETTY_MQTTSERVER_" + getSystemHostName() + "_" + (System.currentTimeMillis()/1000);
 
     public static String getPID() {
@@ -42,6 +45,9 @@ public class Constants {
         CLIENT_TIMEOUT = CommonUtils.getIntValue("client_timeout",60);
         KEY_FILE = CommonUtils.getValue("key_file", "aihelp.pkcs8_key.pem");
         CERT_FILE = CommonUtils.getValue("cert_file","aihelp.net.chained.crt");
+
+        KEY_FILES = CommonUtils.getArrayValue("key_file", "aihelp.pkcs8_key.pem");
+        CERT_FILES = CommonUtils.getArrayValue("cert_file", "aihelp.net.chained.crt");
 
     }
 }

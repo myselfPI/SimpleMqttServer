@@ -15,6 +15,9 @@ import com.longtech.mqtt.BL.TopicStore;
 import com.longtech.mqtt.Utils.CommonUtils;
 import com.longtech.mqtt.Utils.Constants;
 import com.longtech.mqtt.cluster.TopicManager;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.paho.client.mqttv3.*;
@@ -827,9 +830,9 @@ public class MqttClientWorker {
                 // cluster client
                 continue;
             }
-
             session.sendData(topic, data);
         }
+//        ReferenceCountUtil.release(bb);
 //        if (sharedSession.size() > 0 ) {
 //            long num = sharedSession.size();
 //            if( srcSession == null ) {

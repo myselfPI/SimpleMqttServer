@@ -113,9 +113,8 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
                             default:
                                 return;
                         }
-                    }
-                    else {
-                        if( ctx.channel().isActive()) {
+                    } else {
+                        if (ctx.channel().isActive()) {
                             ctx.channel().attr(REASON).set("InvalidPackage");
                             ctx.channel().writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
                         }
@@ -174,7 +173,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
             IdleStateEvent event = (IdleStateEvent)evt;
             ChannelPipeline pipeline = ctx.pipeline();
             if( pipeline.get("webSocketHandler") != null) {
-                if (event.state().equals(IdleState.WRITER_IDLE)  )
+                if (event.state().equals(IdleState.READER_IDLE)  )
                 {
                     logger.debug("Timeout Mqtt");
                     if( ctx.channel().isActive()) {
@@ -255,7 +254,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         MqttPublishVariableHeader variableHeader = new MqttPublishVariableHeader(topicName, messageId);//("MQIsdp",3,false,false,false,0,false,false,60);
         ByteBuf payload = Unpooled.wrappedBuffer(str.getBytes(CharsetUtil.UTF_8));
         MqttPublishMessage msg = new MqttPublishMessage(mqttFixedHeader, variableHeader, payload);
-        logger.debug("Send Mqtt {}", MqttMessageType.PUBLISH );
+        logger.debug("Send Mqtt {}", MqttMessageType.PUBLISH);
         return msg;
     }
 
@@ -448,6 +447,7 @@ public class MqttServerHandler extends SimpleChannelInboundHandler<Object>
         MqttPublishMessage message = (MqttPublishMessage)request;
         String topic = message.variableHeader().topicName();
         ByteBuf buf = message.payload();
+
         byte[] bytes = new byte[buf.readableBytes()];
         int readerIndex = buf.readerIndex();
         buf.getBytes(readerIndex, bytes);

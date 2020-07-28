@@ -45,13 +45,13 @@ public class SystemMonitor {
         if( session.getConectPort() == MqttServer.TCP_Port ) {
             mqtt_tcp_count.addAndGet(val);
         }
-        else if ( session.getConectPort() == MqttServer.SSL_Port ) {
-            mqtt_ssl_count.addAndGet(val);
-        }
+//        else if ( session.getConectPort() == MqttServer.SSL_Port ) {
+//            mqtt_ssl_count.addAndGet(val);
+//        }
         else if ( session.getConectPort() == MqttServer.WS_Port ) {
             mqtt_ws_count.addAndGet(val);
         }
-        else if ( session.getConectPort() == MqttServer.WSS_Port ) {
+        else if ( MqttServer.SPortsMap.containsKey(session.getConectPort()) ) {
             mqtt_wss_count.addAndGet(val);
         }
         else if ( session.getConectPort() == MqttServer.CTL_Port ) {

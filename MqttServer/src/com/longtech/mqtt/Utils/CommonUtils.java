@@ -48,6 +48,21 @@ public class CommonUtils {
         }
     }
 
+    public static String[] getArrayValue( String key, String defaultValue ) {
+        if( config == null) {
+            config = new Properties();
+            loadConfig();
+        }
+        String wbs = config.getProperty(key);
+        if(StringUtil.isNullOrEmpty(wbs)) {
+            return new String[]{defaultValue};
+        }
+        else {
+            String[] ret = wbs.split("\\,");
+            return ret;
+        }
+    }
+
     public static int getIntValue( String key, int defaultValue) {
         String ret = getValue(key,"");
         if( StringUtil.isNullOrEmpty(ret)) {
@@ -227,5 +242,17 @@ public class CommonUtils {
         ThreadLocalRandom generator = ThreadLocalRandom.current();
         long randnum = generator.nextLong(size);
         return randnum;
+    }
+
+
+    public static String getArrayString( int[] arrays ) {
+        StringBuffer sb = new StringBuffer();
+        sb.append('[');
+        for ( int item : arrays) {
+            sb.append(item).append(',');
+        }
+        sb.setLength(sb.length() -1 );
+        sb.append(']');
+        return sb.toString();
     }
 }

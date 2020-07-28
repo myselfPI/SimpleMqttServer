@@ -21,21 +21,36 @@ public class MqttServerInitializer extends ChannelInitializer<SocketChannel> {
 
     private static final MqttServerHandler SERVER_HANDLER = new MqttServerHandler();
     private final SslContext sslCtx;
-
+    private final SslContext[] sslCtxs;
 
     public MqttServerInitializer(SslContext sslCtx) {
         this.sslCtx = sslCtx;
+        this.sslCtxs =  new SslContext[] {sslCtx};
+    }
+
+    public MqttServerInitializer(SslContext[] sslCtxs) {
+        this.sslCtxs = sslCtxs;
+        if(this.sslCtxs.length > 0) {
+            this.sslCtx = this.sslCtxs[0];
+        }
+        else {
+            this.sslCtx = null;
+        }
     }
 
     @Override
     public void initChannel(SocketChannel ch) throws Exception
     {
         ChannelPipeline pipeline = ch.pipeline();
-        if (sslCtx != null)
+        if (sslCtxs != null)
         {
-            if( ch.localAddress().getPort() == MqttServer.SSL_Port || ch.localAddress().getPort()==MqttServer.WSS_Port
-                    || ch.localAddress().getPort() == MqttServer.CTL_SSL_Port) {
-                pipeline.addLast(sslCtx.newHandler(ch.alloc()));
+            int localport = ch.localAddress().getPort();
+
+            Integer index = MqttServer.SPortsMap.get(localport);
+            if( index != null ) {
+                if(sslCtxs[index.intValue()] != null) {
+                    pipeline.addLast(sslCtxs[index.intValue()].newHandler(ch.alloc()));
+                }
             }
         }
 
